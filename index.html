@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LeyesHJ — Base Legislativa Interactiva</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ══════════════════════════════════════════
+   TOKENS
+══════════════════════════════════════════ */
+:root{
+  --ink:#0a0a08;
+  --ink2:#131310;
+  --ink3:#1c1c18;
+  --cream:#faf8f2;
+  --parch:#f2ede0;
+  --gold:#b8962e;
+  --gold2:#d4af58;
+  --gold3:#e8cc80;
+  --goldglow:rgba(184,150,46,.15);
+  --goldborder:rgba(184,150,46,.22);
+  --mut:#8a8070;
+  --crimson:#7a1515;
+  --ff1:'Playfair Display',Georgia,serif;
+  --ff2:'Source Serif 4',Georgia,serif;
+  --ff3:'IBM Plex Mono',monospace;
+  --ease:cubic-bezier(.25,.46,.45,.94);
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:16px}
+body{background:var(--ink);color:var(--cream);font-family:var(--ff2);line-height:1.7;overflow-x:hidden;cursor:none}
+::selection{background:var(--goldglow);color:var(--gold)}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:var(--ink)}
+::-webkit-scrollbar-thumb{background:var(--gold)}
+
+/* ── CUSTOM CURSOR ── */
+#cursor{
+  position:fixed;width:10px;height:10px;border-radius:50%;
+  background:var(--gold);pointer-events:none;z-index:9999;
+  transform:translate(-50%,-50%);transition:transform .1s,width .25s,height .25s,background .25s;
+  mix-blend-mode:difference;
+}
+#cursor-ring{
+  position:fixed;width:36px;height:36px;border-radius:50%;
+  border:1px solid rgba(184,150,46,.5);pointer-events:none;z-index:9998;
+  transform:translate(-50%,-50%);transition:transform .18s var(--ease),width .3s,height .3s,opacity .3s;
+}
+body:hover #cursor{opacity:1}
+
+/* ── LOADER ── */
+#loader{
+  position:fixed;inset:0;z-index:8000;background:var(--ink);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;
+  transition:opacity 1s var(--ease),visibility 1s;
+}
+#loader.out{opacity:0;visibility:hidden;pointer-events:none}
+.ld-logo{font-family:var(--ff1);font-size:clamp(3rem,8vw,6rem);color:var(--gold);font-weight:700;letter-spacing:.1em;animation:ldpulse 2s ease-in-out infinite}
+.ld-bar{width:240px;height:1px;background:rgba(255,255,255,.07);position:relative;overflow:hidden}
+.ld-bar::after{content:'';position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:ldsweep 1.8s ease-out forwards}
+.ld-txt{font-family:var(--ff3);font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.25)}
+@keyframes ldpulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes ldsweep{0%{width:0}100%{width:100%}}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.1rem 3rem;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  background:rgba(10,10,8,.88);backdrop-filter:blur(16px);
+}
+.n-logo{font-family:var(--ff1);font-size:1.5rem;font-weight:700;color:var(--cream);text-decoration:none;letter-spacing:.02em}
+.n-logo span{color:var(--gold)}
+.n-links{display:flex;gap:2.5rem;list-style:none}
+.n-links a{font-family:var(--ff3);font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.4);text-decoration:none;transition:color .2s}
+.n-links a:hover{color:var(--gold)}
+.n-cta{
+  font-family:var(--ff3);font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;
+  background:var(--gold);color:var(--ink);padding:.55rem 1.3rem;text-decoration:none;
+  transition:background .2s,transform .15s;
+}
+.n-cta:hover{background:var(--gold2);transform:translateY(-1px)}
+
+/* ── HERO ── */
+.hero{
+  min-height:100vh;display:flex;align-items:center;
+  padding:9rem 5rem 5rem;position:relative;overflow:hidden;
+}
+.hero-bg{
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 60% at 80% 40%,rgba(184,150,46,.06) 0%,transparent 70%),
+    radial-gradient(ellipse 40% 40% at 20% 80%,rgba(184,150,46,.04) 0%,transparent 70%);
+}
+.hero-content{max-width:700px;position:relative;z-index:2}
+.h-eyebrow{
+  display:inline-flex;align-items:center;gap:.7rem;
+  font-family:var(--ff3);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:2rem;
+}
+.h-eyebrow::before{content:'';width:32px;height:1px;background:var(--gold)}
+.h-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:dotpulse 2s ease-in-out infinite}
+@keyframes dotpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.2;transform:scale(.5)}}
+.hero h1{
+  font-family:var(--ff1);font-size:clamp(3.2rem,6vw,5.5rem);
+  font-weight:900;line-height:1.04;letter-spacing:-.03em;
+  color:var(--cream);margin-bottom:1.5rem;
+}
+.hero h1 em{font-style:italic;color:var(--gold)}
+.hero-sub{font-size:1rem;color:rgba(250,248,242,.5);line-height:1.85;max-width:500px;margin-bottom:3rem}
+.hero-btns{display:flex;gap:1rem;flex-wrap:wrap}
+.btn-p{
+  background:var(--gold);color:var(--ink);padding:.9rem 2rem;
+  font-family:var(--ff3);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+  border:none;cursor:pointer;text-decoration:none;display:inline-block;
+  transition:all .22s var(--ease);
+}
+.btn-p:hover{background:var(--gold2);transform:translateY(-2px);box-shadow:0 12px 40px rgba(184,150,46,.3)}
+.btn-s{
+  background:transparent;color:rgba(255,255,255,.6);padding:.9rem 2rem;
+  font-family:var(--ff3);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid rgba(255,255,255,.15);cursor:pointer;text-decoration:none;display:inline-block;
+  transition:all .22s;
+}
+.btn-s:hover{border-color:var(--gold);color:var(--gold)}
+.hero-counters{
+  display:flex;gap:3.5rem;margin-top:4.5rem;
+  padding-top:2.5rem;border-top:1px solid rgba(255,255,255,.06);
+}
+.hc .n{font-family:var(--ff1);font-size:2.4rem;font-weight:700;color:var(--gold);line-height:1;display:block}
+.hc .l{font-family:var(--ff3);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-top:.3rem;display:block}
+
+/* decorative right side */
+.hero-deco{
+  position:absolute;right:5rem;top:50%;transform:translateY(-50%);
+  pointer-events:none;z-index:1;
+}
+.deco-ring{
+  width:340px;height:340px;border-radius:50%;
+  border:1px solid rgba(184,150,46,.1);
+  display:flex;align-items:center;justify-content:center;
+  animation:deco-rotate 40s linear infinite;
+  position:relative;
+}
+.deco-ring::before{
+  content:'';position:absolute;inset:-1px;border-radius:50%;
+  border:1px solid rgba(184,150,46,.05);
+}
+.deco-ring::after{
+  content:'§';font-family:var(--ff1);font-size:8rem;font-weight:900;
+  color:rgba(184,150,46,.06);pointer-events:none;
+}
+@keyframes deco-rotate{0%{transform:translateY(-50%) rotate(0)}100%{transform:translateY(-50%) rotate(360deg)}}
+
+/* ── SECTION WRAPPER ── */
+.wrap{padding:7rem 5rem;position:relative}
+
+/* ── CODES EXPLORER ── */
+.explorer{background:var(--ink2);padding:6rem 5rem}
+.exp-head{margin-bottom:3.5rem}
+.s-eye{font-family:var(--ff3);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:.7rem}
+.s-h{font-family:var(--ff1);font-size:clamp(2rem,4vw,3rem);font-weight:900;line-height:1.08;letter-spacing:-.025em;color:var(--cream);margin-bottom:.8rem}
+.s-h em{font-style:italic;color:var(--gold)}
+.s-p{font-size:.9rem;color:rgba(255,255,255,.4);max-width:500px;line-height:1.8}
+
+/* ── GLOBAL SEARCH ── */
+.g-search{
+  display:flex;align-items:stretch;gap:0;
+  background:rgba(255,255,255,.03);
+  border:1px solid var(--goldborder);
+  margin-bottom:2rem;max-width:600px;
+  transition:border-color .25s,box-shadow .25s;
+}
+.g-search:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,150,46,.08)}
+.gs-icon{padding:0 1.2rem;color:rgba(184,150,46,.5);font-size:.9rem;display:flex;align-items:center}
+#globalSearch{
+  flex:1;background:transparent;border:none;outline:none;
+  font-family:var(--ff2);font-size:.9rem;color:var(--cream);padding:.85rem 0;
+}
+#globalSearch::placeholder{color:rgba(255,255,255,.2)}
+.gs-hint{font-family:var(--ff3);font-size:.58rem;letter-spacing:.1em;color:rgba(255,255,255,.15);padding:0 1rem;display:flex;align-items:center;white-space:nowrap}
+
+/* ── FILTER PILLS ── */
+.filters{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:2.5rem}
+.fpill{
+  font-family:var(--ff3);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.35rem .85rem;border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.35);background:transparent;cursor:pointer;
+  transition:all .18s;
+}
+.fpill:hover{border-color:var(--gold);color:var(--gold)}
+.fpill.on{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+
+/* ── CODES GRID ── */
+.codes-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1px;
+  background:rgba(184,150,46,.08);
+}
+.code-card{
+  background:var(--ink2);
+  padding:2.2rem 2rem;
+  position:relative;overflow:hidden;
+  cursor:pointer;
+  transition:background .3s var(--ease);
+  border-bottom:2px solid transparent;
+}
+/* shimmer on hover */
+.code-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent 40%,rgba(184,150,46,.04) 100%);
+  opacity:0;transition:opacity .3s;
+}
+/* top line reveal */
+.code-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--gold),var(--gold2),transparent);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .4s var(--ease);
+}
+.code-card:hover{background:rgba(184,150,46,.05);border-bottom-color:rgba(184,150,46,.3)}
+.code-card:hover::before{opacity:1}
+.code-card:hover::after{transform:scaleX(1)}
+.code-card.hide{display:none}
+
+/* card internals */
+.cc-num{font-family:var(--ff3);font-size:.58rem;letter-spacing:.12em;color:rgba(184,150,46,.4);margin-bottom:.5rem;display:block;transition:color .2s}
+.code-card:hover .cc-num{color:var(--gold)}
+.cc-sym{
+  font-family:var(--ff1);font-size:3.5rem;font-weight:900;
+  color:rgba(184,150,46,.07);line-height:1;margin-bottom:.5rem;
+  transition:color .3s;display:block;
+}
+.code-card:hover .cc-sym{color:rgba(184,150,46,.18)}
+.cc-name{font-family:var(--ff1);font-size:.92rem;font-weight:700;color:var(--cream);line-height:1.35;margin-bottom:.7rem}
+.cc-tag{
+  display:inline-block;font-family:var(--ff3);font-size:.55rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--gold);
+  border:1px solid rgba(184,150,46,.25);padding:.15rem .5rem;
+  transition:background .2s,color .2s;
+}
+.code-card:hover .cc-tag{background:var(--goldglow)}
+.cc-desc{
+  font-size:.78rem;color:rgba(255,255,255,.3);line-height:1.65;
+  margin-top:.6rem;
+  max-height:0;overflow:hidden;
+  transition:max-height .4s var(--ease),opacity .3s;
+  opacity:0;
+}
+.code-card:hover .cc-desc{max-height:60px;opacity:1}
+.cc-arrow{
+  position:absolute;bottom:1.3rem;right:1.3rem;
+  font-size:1rem;color:rgba(184,150,46,.25);
+  transition:transform .2s,color .2s;
+}
+.code-card:hover .cc-arrow{color:var(--gold);transform:translate(3px,-3px)}
+/* glow blob */
+.cc-glow{
+  position:absolute;bottom:-40px;right:-40px;
+  width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(184,150,46,.12) 0%,transparent 70%);
+  pointer-events:none;transition:transform .4s var(--ease),opacity .3s;
+  opacity:0;
+}
+.code-card:hover .cc-glow{opacity:1;transform:scale(1.4)}
+
+/* empty state */
+.no-results{
+  grid-column:1/-1;padding:4rem;text-align:center;
+  font-family:var(--ff3);font-size:.75rem;letter-spacing:.1em;
+  color:rgba(255,255,255,.2);display:none;
+}
+
+/* ══════════════════════════════════════════
+   PANEL — full screen search experience
+══════════════════════════════════════════ */
+.panel-overlay{
+  position:fixed;inset:0;z-index:500;
+  display:flex;
+  opacity:0;visibility:hidden;
+  transition:opacity .35s var(--ease),visibility .35s;
+}
+.panel-overlay.open{opacity:1;visibility:visible}
+
+/* left: code info sidebar */
+.panel-sidebar{
+  width:340px;flex-shrink:0;
+  background:var(--ink);
+  border-right:1px solid var(--goldborder);
+  display:flex;flex-direction:column;
+  transform:translateX(-30px);
+  transition:transform .4s var(--spring);
+  overflow-y:auto;
+  position:relative;
+}
+.panel-overlay.open .panel-sidebar{transform:translateX(0)}
+
+.ps-header{
+  padding:2rem 2.2rem 1.5rem;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  background:rgba(184,150,46,.04);
+  position:sticky;top:0;z-index:2;
+  backdrop-filter:blur(8px);
+}
+.ps-close{
+  background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);
+  width:32px;height:32px;font-size:.9rem;cursor:pointer;margin-bottom:1.2rem;
+  transition:all .2s;font-family:var(--ff3);
+}
+.ps-close:hover{border-color:var(--gold);color:var(--gold)}
+.ps-num{font-family:var(--ff3);font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;display:block}
+.ps-title{font-family:var(--ff1);font-size:1.2rem;font-weight:700;color:var(--cream);line-height:1.3}
+.ps-tag{display:inline-block;font-family:var(--ff3);font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(184,150,46,.3);padding:.15rem .5rem;margin-top:.6rem}
+
+.ps-meta{padding:1.5rem 2.2rem;display:grid;grid-template-columns:1fr 1fr;gap:.6rem;border-bottom:1px solid rgba(255,255,255,.04)}
+.pm-item .pm-l{font-family:var(--ff3);font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:.15rem}
+.pm-item .pm-v{font-family:var(--ff1);font-size:.9rem;font-weight:600;color:var(--cream)}
+
+.ps-desc{padding:1.5rem 2.2rem;border-bottom:1px solid rgba(255,255,255,.04)}
+.ps-desc p{font-size:.82rem;color:rgba(255,255,255,.4);line-height:1.75}
+
+/* layer tabs */
+.ps-layers{display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.05)}
+.layer-tab{
+  flex:1;font-family:var(--ff3);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.7rem .5rem;background:transparent;border:none;color:rgba(255,255,255,.3);
+  cursor:pointer;transition:all .2s;border-bottom:2px solid transparent;
+}
+.layer-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.ps-actions{padding:1.5rem 2.2rem;margin-top:auto;border-top:1px solid rgba(255,255,255,.04)}
+.ps-btn{
+  width:100%;font-family:var(--ff3);font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;
+  background:var(--gold);color:var(--ink);border:none;padding:.75rem;cursor:pointer;
+  transition:background .2s,transform .15s;margin-bottom:.5rem;display:block;text-decoration:none;text-align:center;
+}
+.ps-btn:hover{background:var(--gold2);transform:translateY(-1px)}
+.ps-btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4)}
+.ps-btn.ghost:hover{border-color:var(--gold);color:var(--gold);transform:none}
+
+/* right: search panel */
+.panel-main{
+  flex:1;background:var(--ink2);display:flex;flex-direction:column;
+  transform:translateX(30px);
+  transition:transform .4s .06s var(--spring);
+  overflow:hidden;
+}
+.panel-overlay.open .panel-main{transform:translateX(0)}
+
+.pm-search-wrap{
+  padding:2rem 2.5rem;border-bottom:1px solid rgba(255,255,255,.05);
+  background:rgba(10,10,8,.6);backdrop-filter:blur(10px);
+  position:sticky;top:0;z-index:2;
+}
+.pm-input-row{display:flex;gap:0;background:rgba(255,255,255,.04);border:1px solid var(--goldborder);transition:border-color .25s,box-shadow .25s}
+.pm-input-row:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px rgba(184,150,46,.08)}
+.pm-search-icon{padding:0 1.2rem;color:rgba(184,150,46,.5);display:flex;align-items:center;font-size:.9rem}
+.pm-input{
+  flex:1;background:transparent;border:none;outline:none;
+  font-family:var(--ff2);font-size:1rem;color:var(--cream);padding:1rem 0;
+}
+.pm-input::placeholder{color:rgba(255,255,255,.2)}
+.pm-search-btn{
+  background:var(--gold);color:var(--ink);border:none;
+  padding:0 1.5rem;font-family:var(--ff3);font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;
+  cursor:pointer;transition:background .2s;white-space:nowrap;
+}
+.pm-search-btn:hover{background:var(--gold2)}
+
+/* layer pills */
+.pm-layers{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+.lp{
+  font-family:var(--ff3);font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.3rem .75rem;border:1px solid rgba(255,255,255,.08);
+  color:rgba(255,255,255,.3);cursor:pointer;background:transparent;
+  transition:all .18s;
+}
+.lp.on{background:var(--goldglow);border-color:var(--gold);color:var(--gold)}
+.lp:hover{border-color:rgba(184,150,46,.4);color:rgba(184,150,46,.7)}
+
+/* results area */
+.pm-results{flex:1;overflow-y:auto;padding:1.5rem 2.5rem}
+.pm-results::-webkit-scrollbar{width:3px}
+.pm-results::-webkit-scrollbar-thumb{background:rgba(184,150,46,.3)}
+
+.result-section{margin-bottom:2.5rem}
+.rs-label{
+  font-family:var(--ff3);font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(255,255,255,.2);padding-bottom:.5rem;margin-bottom:1rem;
+  border-bottom:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;align-items:center;
+}
+.rs-count{background:rgba(184,150,46,.15);color:var(--gold);padding:.1rem .4rem;font-size:.55rem;border-radius:2px}
+
+.art-row{
+  display:flex;gap:1rem;padding:.9rem 0;
+  border-bottom:1px solid rgba(255,255,255,.04);
+  cursor:pointer;transition:all .18s;border-radius:2px;
+}
+.art-row:hover{padding-left:.8rem;background:rgba(184,150,46,.04)}
+.art-row:last-child{border-bottom:none}
+.ar-num{
+  font-family:var(--ff3);font-size:.62rem;letter-spacing:.06em;
+  color:var(--gold);min-width:72px;margin-top:.1rem;flex-shrink:0;
+}
+.ar-body{flex:1}
+.ar-title{font-family:var(--ff1);font-size:.88rem;font-weight:600;color:var(--cream);margin-bottom:.2rem;line-height:1.3}
+.ar-text{font-size:.78rem;color:rgba(255,255,255,.4);line-height:1.6}
+.ar-text mark{background:rgba(184,150,46,.2);color:var(--gold2);padding:0 2px}
+.ar-caret{color:rgba(184,150,46,.3);font-size:.7rem;margin-top:.1rem;transition:transform .2s,color .2s;flex-shrink:0}
+.art-row:hover .ar-caret{color:var(--gold);transform:translateX(4px)}
+
+/* article expanded */
+.art-row.expanded .ar-caret{transform:rotate(90deg);color:var(--gold)}
+.art-expanded{
+  display:none;padding:.8rem 1rem .8rem calc(72px + 1rem);
+  background:rgba(184,150,46,.04);border-left:2px solid var(--gold);
+  margin-bottom:.5rem;
+}
+.art-row.expanded + .art-expanded{display:block}
+.ae-text{font-size:.82rem;color:rgba(255,255,255,.55);line-height:1.8}
+.ae-actions{display:flex;gap:.5rem;margin-top:.8rem}
+.ae-btn{
+  font-family:var(--ff3);font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;
+  background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.35);
+  padding:.3rem .7rem;cursor:pointer;transition:all .18s;
+}
+.ae-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+/* empty / loading */
+.pm-empty{
+  padding:5rem 2rem;text-align:center;
+  font-family:var(--ff3);font-size:.72rem;letter-spacing:.1em;color:rgba(255,255,255,.15);
+}
+.pm-empty .em-ico{font-size:2.5rem;display:block;margin-bottom:1rem;opacity:.3}
+.pm-intro{padding:2rem 0}
+.pi-title{font-family:var(--ff1);font-size:1.1rem;color:rgba(255,255,255,.25);margin-bottom:.5rem;font-style:italic}
+.pi-sub{font-size:.8rem;color:rgba(255,255,255,.15);line-height:1.7}
+.quick-tags{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1.2rem}
+.qt{
+  font-family:var(--ff3);font-size:.58rem;letter-spacing:.08em;
+  border:1px solid rgba(184,150,46,.2);color:rgba(184,150,46,.6);
+  padding:.25rem .65rem;cursor:pointer;background:transparent;
+  transition:all .18s;
+}
+.qt:hover{background:var(--goldglow);color:var(--gold);border-color:var(--gold)}
+
+/* backdrop blur */
+.panel-backdrop{
+  position:fixed;inset:0;z-index:499;
+  background:rgba(10,10,8,.7);backdrop-filter:blur(4px);
+  opacity:0;visibility:hidden;transition:all .35s;
+}
+.panel-backdrop.open{opacity:1;visibility:visible}
+
+/* ── MARQUEE ── */
+.marquee-wrap{overflow:hidden;background:var(--gold);padding:.7rem 0;border-top:1px solid rgba(255,255,255,.1)}
+.marquee-track{display:flex;white-space:nowrap;animation:mq 28s linear infinite}
+.marquee-track:hover{animation-play-state:paused}
+.mq-item{font-family:var(--ff3);font-size:.65rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);padding:0 2.5rem;opacity:.7}
+.mq-dot{color:rgba(0,0,0,.3);font-size:.5rem}
+@keyframes mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* ── FEATURES ── */
+.feats{padding:7rem 5rem;background:var(--ink)}
+.feats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(184,150,46,.08);margin-top:4rem}
+.fc{background:var(--ink);padding:2.6rem 2.2rem;position:relative;overflow:hidden;transition:background .25s}
+.fc:hover{background:var(--ink3)}
+.fc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--gold),transparent);transform:scaleY(0);transform-origin:top;transition:transform .4s var(--ease)}
+.fc:hover::before{transform:scaleY(1)}
+.fc-ico{font-size:1.7rem;display:block;margin-bottom:1.2rem}
+.fc h3{font-family:var(--ff1);font-size:1.1rem;font-weight:700;color:var(--cream);margin-bottom:.5rem}
+.fc p{font-size:.82rem;color:rgba(255,255,255,.38);line-height:1.75}
+
+/* ── CTA ── */
+.cta-sec{background:var(--gold);padding:6rem 5rem;text-align:center;position:relative;overflow:hidden}
+.cta-sec::before{content:'§';position:absolute;font-family:var(--ff1);font-size:28rem;font-weight:900;color:rgba(0,0,0,.04);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
+.cta-sec .s-eye{color:rgba(10,10,8,.4);position:relative}
+.cta-h{font-family:var(--ff1);font-size:clamp(2.2rem,5vw,3.8rem);font-weight:900;color:var(--ink);line-height:1.06;margin-bottom:1rem;position:relative}
+.cta-h em{font-style:italic}
+.cta-p{font-size:.92rem;color:rgba(10,10,8,.55);max-width:460px;margin:0 auto 2.8rem;line-height:1.8;position:relative}
+.cta-form{display:flex;gap:0;max-width:440px;margin:0 auto;position:relative}
+.cta-in{flex:1;border:2px solid rgba(10,10,8,.2);border-right:none;background:rgba(250,248,242,.8);padding:.95rem 1.2rem;font-family:var(--ff2);font-size:.9rem;color:var(--ink);outline:none;transition:border-color .2s}
+.cta-in:focus{border-color:var(--ink);background:var(--cream)}
+.cta-in::placeholder{color:rgba(10,10,8,.35)}
+.cta-sub{background:var(--ink);color:var(--cream);border:none;padding:0 1.5rem;font-family:var(--ff3);font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .2s;white-space:nowrap}
+.cta-sub:hover{background:#222218}
+
+/* ── FOOTER ── */
+footer{background:var(--ink);border-top:1px solid rgba(255,255,255,.04);padding:4.5rem 5rem 2rem}
+.ft-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:4rem;margin-bottom:3.5rem}
+.ft-brand .logo{font-family:var(--ff1);font-size:1.55rem;font-weight:700;color:var(--cream);letter-spacing:.02em}
+.ft-brand .logo span{color:var(--gold)}
+.ft-brand p{font-size:.8rem;color:rgba(255,255,255,.25);line-height:1.8;margin-top:.9rem;max-width:250px}
+.ft-col h4{font-family:var(--ff3);font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:1.1rem}
+.ft-col ul{list-style:none}
+.ft-col ul li{margin-bottom:.5rem}
+.ft-col ul a{font-size:.8rem;color:rgba(255,255,255,.3);text-decoration:none;transition:color .2s}
+.ft-col ul a:hover{color:var(--gold)}
+.ft-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:1.8rem;border-top:1px solid rgba(255,255,255,.04);font-family:var(--ff3);font-size:.58rem;letter-spacing:.08em;color:rgba(255,255,255,.2)}
+.ft-leg{display:flex;gap:2rem}
+.ft-leg a{color:rgba(255,255,255,.2);text-decoration:none;transition:color .2s}
+.ft-leg a:hover{color:var(--gold)}
+
+/* ── REVEAL ── */
+.rv{opacity:0;transform:translateY(20px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.rv.in{opacity:1;transform:translateY(0)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1000px){
+  nav{padding:1rem 1.5rem}
+  .n-links{display:none}
+  .hero,.wrap,.explorer,.feats,.cta-sec,footer{padding:5rem 2rem}
+  .hero-deco{display:none}
+  .feats-grid{grid-template-columns:1fr}
+  .ft-grid{grid-template-columns:1fr;gap:2rem}
+  .ft-bottom{flex-direction:column;gap:1rem}
+  .panel-sidebar{width:100%;max-width:100%;position:absolute;bottom:0;top:auto;right:0;left:0;max-height:60vh;transform:translateY(20px)}
+  .panel-overlay.open .panel-sidebar{transform:translateY(0)}
+  .panel-main{margin-top:200px}
+  .codes-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:600px){
+  .codes-grid{grid-template-columns:1fr}
+  .hero-counters{flex-wrap:wrap;gap:2rem}
+}
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="ld-logo">LeyesHJ</div>
+  <div class="ld-bar"></div>
+  <div class="ld-txt">Cargando base legislativa…</div>
+</div>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#" class="n-logo">Leyes<span>HJ</span></a>
+  <ul class="n-links">
+    <li><a href="#codigos">Códigos</a></li>
+    <li><a href="#funciones">Funciones</a></li>
+    <li><a href="#acceso">Acceso</a></li>
+  </ul>
+  <a href="#acceso" class="n-cta">Solicitar Acceso</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="h-eyebrow"><span class="h-dot"></span> IA Jurídica · Latinoamérica</div>
+    <h1>El derecho<br>a tu favor,<br><em>con IA.</em></h1>
+    <p class="hero-sub">18 códigos legales. Jurisprudencia en tiempo real. Redacción automatizada. La plataforma más completa para los 120,000 abogados de Sudamérica.</p>
+    <div class="hero-btns">
+      <a href="#codigos" class="btn-p">Explorar Códigos</a>
+      <a href="#acceso" class="btn-s">Solicitar Acceso →</a>
+    </div>
+    <div class="hero-counters">
+      <div class="hc"><span class="n">18</span><span class="l">Códigos legales</span></div>
+      <div class="hc"><span class="n">120K+</span><span class="l">Abogados objetivo</span></div>
+      <div class="hc"><span class="n">4</span><span class="l">Países cubiertos</span></div>
+      <div class="hc"><span class="n">24/7</span><span class="l">Disponibilidad</span></div>
+    </div>
+  </div>
+  <div class="hero-deco"><div class="deco-ring"></div></div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-wrap">
+  <div class="marquee-track" id="mqTrack"></div>
+</div>
+
+<!-- CODES EXPLORER -->
+<section class="explorer" id="codigos">
+  <div class="exp-head rv">
+    <span class="s-eye">02 — Base Legislativa Interactiva</span>
+    <h2 class="s-h">18 Códigos.<br><em>Un clic. Tu buscador.</em></h2>
+    <p class="s-p">Haz clic en cualquier código para abrir su buscador por capas: artículos, jurisprudencia, CAS y doctrina actualizada.</p>
+  </div>
+
+  <div class="g-search rv">
+    <span class="gs-icon">⚖</span>
+    <input id="globalSearch" type="text" placeholder="Filtrar por código o materia… (Ej: penal, tributario, familia)"/>
+    <span class="gs-hint">/ buscar</span>
+  </div>
+
+  <div class="filters rv" id="filters">
+    <button class="fpill on" data-f="all">Todos</button>
+    <button class="fpill" data-f="Fundamental">Fundamental</button>
+    <button class="fpill" data-f="Civil">Civil</button>
+    <button class="fpill" data-f="Penal">Penal</button>
+    <button class="fpill" data-f="Procesal">Procesal</button>
+    <button class="fpill" data-f="Familia">Familia</button>
+    <button class="fpill" data-f="Comercial">Comercial</button>
+    <button class="fpill" data-f="Tributario">Tributario</button>
+    <button class="fpill" data-f="Militar">Militar</button>
+    <button class="fpill" data-f="Internacional">Internacional</button>
+  </div>
+
+  <div class="codes-grid rv" id="codesGrid"></div>
+  <div class="no-results" id="noResults">No se encontraron códigos.</div>
+</section>
+
+<!-- FEATURES -->
+<section class="feats" id="funciones">
+  <span class="s-eye rv">03 — Funcionalidades</span>
+  <h2 class="s-h rv">Tecnología jurídica<br><em>de clase mundial.</em></h2>
+  <div class="feats-grid">
+    <div class="fc rv"><span class="fc-ico">⚖️</span><h3>Redacción Automática</h3><p>Genera demandas, recursos y escritos aplicando artículos y jurisprudencia del SPIJ en segundos.</p></div>
+    <div class="fc rv"><span class="fc-ico">🔍</span><h3>SPIJ en Tiempo Real</h3><p>Validación directa con el SPIJ. Artículos, concordancias y jurisprudencia de la Corte Suprema actualizada.</p></div>
+    <div class="fc rv"><span class="fc-ico">📋</span><h3>Peritaje del Caso</h3><p>La IA analiza el expediente y propone la estrategia legal más sólida con CAS y precedentes.</p></div>
+    <div class="fc rv"><span class="fc-ico">🌎</span><h3>Multi-Jurisdicción</h3><p>Perú, Colombia, Ecuador y Bolivia. Normativa correcta aplicada automáticamente por jurisdicción.</p></div>
+    <div class="fc rv"><span class="fc-ico">📄</span><h3>Exportación PDF / Word</h3><p>Documentos listos para el juzgado con plantillas legales profesionales y firma digital.</p></div>
+    <div class="fc rv"><span class="fc-ico">🔒</span><h3>Multi-Tenant Seguro</h3><p>Arquitectura por capas, aislamiento total por despacho. Escalable para 120,000 usuarios.</p></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-sec" id="acceso">
+  <span class="s-eye rv">¿Listo para el siguiente nivel?</span>
+  <h2 class="cta-h rv">Únete a la<br><em>Revolución Legal</em></h2>
+  <p class="cta-p rv">Acceso anticipado a LeyesHJ. Automatización jurídica de clase mundial disponible para toda Latinoamérica.</p>
+  <div class="cta-form rv">
+    <input type="email" class="cta-in" id="ctaEmail" placeholder="Tu correo profesional…"/>
+    <button class="cta-sub" id="ctaBtn">Solicitar →</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ft-grid">
+    <div class="ft-brand"><div class="logo">Leyes<span>HJ</span></div><p>Inteligencia jurídica para Latinoamérica. Automatización de clase mundial para el derecho peruano, colombiano, ecuatoriano y boliviano.</p></div>
+    <div class="ft-col"><h4>Plataforma</h4><ul><li><a href="#">Códigos Legales</a></li><li><a href="#">Redacción IA</a></li><li><a href="#">SPIJ Integration</a></li><li><a href="#">Exportar Docs</a></li></ul></div>
+    <div class="ft-col"><h4>Países</h4><ul><li><a href="#">🇵🇪 Perú</a></li><li><a href="#">🇨🇴 Colombia</a></li><li><a href="#">🇪🇨 Ecuador</a></li><li><a href="#">🇧🇴 Bolivia</a></li></ul></div>
+    <div class="ft-col"><h4>Empresa</h4><ul><li><a href="#">Nosotros</a></li><li><a href="#">Blog Jurídico</a></li><li><a href="https://www.corporacionafuh.com" target="_blank">Corp. AFUH</a></li><li><a href="#">Contacto</a></li></ul></div>
+  </div>
+  <div class="ft-bottom"><span>© 2025 LeyesHJ — Todos los derechos reservados</span><div class="ft-leg"><a href="#">Privacidad</a><a href="#">Términos</a><a href="#">RGPD</a></div></div>
+</footer>
+
+<!-- PANEL BACKDROP -->
+<div class="panel-backdrop" id="backdrop" onclick="closePanel()"></div>
+
+<!-- PANEL -->
+<div class="panel-overlay" id="panel">
+  <div class="panel-sidebar" id="pSidebar">
+    <div class="ps-header">
+      <button class="ps-close" onclick="closePanel()">✕</button>
+      <span class="ps-num" id="psNum"></span>
+      <div class="ps-title" id="psTitle"></div>
+      <span class="ps-tag" id="psTag"></span>
+    </div>
+    <div class="ps-meta" id="psMeta"></div>
+    <div class="ps-desc"><p id="psDesc"></p></div>
+    <div class="ps-layers" id="psLayers"></div>
+    <div class="ps-actions">
+      <a href="#acceso" class="ps-btn" onclick="closePanel()">Acceder Completo →</a>
+      <button class="ps-btn ghost" onclick="closePanel()">Cerrar panel</button>
+    </div>
+  </div>
+  <div class="panel-main">
+    <div class="pm-search-wrap">
+      <div class="pm-input-row">
+        <span class="pm-search-icon">🔍</span>
+        <input class="pm-input" id="pmInput" placeholder="Buscar artículo, término, concepto…"/>
+        <button class="pm-search-btn" id="pmBtn">Buscar</button>
+      </div>
+      <div class="pm-layers" id="pmLayers"></div>
+    </div>
+    <div class="pm-results" id="pmResults"></div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════
+   DATA — 18 CODES
+════════════════════════════════ */
+const DB = [
+  {
+    id:'constitucion', num:'001', name:'Constitución Política del Perú',
+    tag:'Fundamental', cat:'Fundamental', arts:'206', vigencia:'1993', est:'Vigente',
+    desc:'Norma suprema del ordenamiento jurídico. Define la estructura del Estado, los derechos fundamentales y las garantías constitucionales.',
+    layers:['Artículos','Jurisprudencia','Doctrina','Concordancias'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Defensa de la persona',d:'La defensa de la persona humana y el respeto de su dignidad son el fin supremo de la sociedad y del Estado.'},
+        {n:'Art. 2',t:'Derechos fundamentales',d:'Toda persona tiene derecho a la vida, a su identidad, a su integridad moral, psíquica y física y a su libre desarrollo y bienestar.'},
+        {n:'Art. 44',t:'Deberes del Estado',d:'Son deberes primordiales del Estado: defender la soberanía nacional, garantizar la plena vigencia de los derechos humanos.'},
+        {n:'Art. 55',t:'Tratados internacionales',d:'Los tratados celebrados por el Estado y en vigor forman parte del derecho nacional.'},
+        {n:'Art. 139',t:'Función jurisdiccional',d:'Son principios y derechos de la función jurisdiccional: la unidad y exclusividad de la función jurisdiccional.'},
+        {n:'Art. 200',t:'Garantías constitucionales',d:'Son garantías constitucionales: la Acción de Hábeas Corpus, la Acción de Amparo, el Hábeas Data, la Acción de Cumplimiento.'},
+        {n:'Art. 202',t:'Atribuciones del TC',d:'Corresponde al Tribunal Constitucional: conocer en instancia única la acción de inconstitucionalidad.'},
+      ],
+      'Jurisprudencia':[
+        {n:'STC 0050-2004-AI',t:'Principio de igualdad',d:'El principio de igualdad, como derecho subjetivo, garantiza a todas las personas el tratamiento igual ante la ley.'},
+        {n:'STC 0008-2003-AI',t:'Estado social de derecho',d:'El Estado social de derecho busca conferir a todos sus habitantes las condiciones básicas de vida.'},
+        {n:'STC 2488-2002-HC',t:'Hábeas corpus',d:'El hábeas corpus es un proceso constitucional destinado a proteger el derecho de la libertad personal.'},
+      ],
+      'Doctrina':[
+        {n:'García Toma',t:'Constitucionalismo peruano',d:'El constitucionalismo peruano ha atravesado diversas etapas desde la independencia, con más de once constituciones.'},
+        {n:'Landa Arroyo',t:'Derechos fundamentales',d:'Los derechos fundamentales son posiciones jurídicas que la Constitución reconoce al individuo frente al Estado.'},
+      ],
+      'Concordancias':[
+        {n:'Ley 28237',t:'Código Procesal Constitucional',d:'Regula los procesos constitucionales previstos en la Constitución: hábeas corpus, amparo, hábeas data.'},
+        {n:'Ley 26397',t:'Ley Orgánica del TC',d:'Establece la organización y competencias del Tribunal Constitucional del Perú.'},
+      ]
+    },
+    quick:['dignidad','derechos','libertad','amparo','hábeas corpus','garantías']
+  },
+  {
+    id:'reglamento_congreso', num:'002', name:'Reglamento del Congreso',
+    tag:'Legislativo', cat:'Fundamental', arts:'112', vigencia:'1995', est:'Vigente',
+    desc:'Regula el funcionamiento del Poder Legislativo, el proceso de formación de leyes, los derechos y deberes de los congresistas y las bancadas parlamentarias.',
+    layers:['Artículos','Procedimientos','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Poder Legislativo',d:'El Congreso de la República es el órgano representativo de la Nación, encargado de realizar las funciones legislativas, de control político y las demás que establece la Constitución.'},
+        {n:'Art. 22',t:'Derechos de los Congresistas',d:'Son derechos de los Congresistas: participar individualmente o agrupados en bancadas parlamentarias en todos los trabajos.'},
+        {n:'Art. 73',t:'Procedimiento legislativo',d:'El procedimiento legislativo se desarrolla en: iniciativa legislativa, estudio en comisiones, publicación en el diario oficial.'},
+      ],
+      'Procedimientos':[
+        {n:'Art. 75',t:'Iniciativa legislativa',d:'Tienen derecho a iniciativa en la formación de las leyes: los Congresistas, el Presidente de la República, los otros poderes del Estado.'},
+        {n:'Art. 80',t:'Observación del Ejecutivo',d:'El Ejecutivo puede observar total o parcialmente las autógrafas de ley dentro de los quince días hábiles.'},
+      ],
+      'Doctrina':[
+        {n:'Hakansson Nieto',t:'Parlamentarismo peruano',d:'El sistema parlamentario peruano adopta un modelo unicameral desde la Constitución de 1993.'},
+      ]
+    },
+    quick:['iniciativa','bancada','comisión','legislativo','congresista']
+  },
+  {
+    id:'ncpc', num:'003', name:'Nuevo Código Procesal Constitucional',
+    tag:'Constitucional', cat:'Fundamental', arts:'128', vigencia:'2021', est:'Vigente',
+    desc:'Regula los procesos constitucionales de hábeas corpus, amparo, hábeas data, proceso de cumplimiento, acción popular e inconstitucionalidad.',
+    layers:['Artículos','Jurisprudencia','Procedimientos'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Finalidad',d:'Los procesos constitucionales tienen por finalidad proteger los derechos constitucionales, reponiendo las cosas al estado anterior a la violación o amenaza.'},
+        {n:'Art. 33',t:'Procedencia del amparo',d:'La demanda de amparo procede contra el hecho u omisión, por parte de cualquier autoridad, funcionario o persona, que vulnera o amenaza los derechos constitucionales.'},
+        {n:'Art. 9',t:'Agotamiento de vías',d:'No proceden los procesos constitucionales cuando existan vías procedimentales específicas igualmente satisfactorias.'},
+        {n:'Art. 51',t:'Hábeas Data',d:'El hábeas data procede en defensa de los derechos reconocidos en los incisos 5 y 6 del artículo 2 de la Constitución.'},
+      ],
+      'Jurisprudencia':[
+        {n:'EXP 00728-2008-HC',t:'Tutela procesal efectiva',d:'La tutela procesal efectiva es un derecho fundamental que garantiza al justiciable ante los órganos jurisdiccionales.'},
+        {n:'EXP 04677-2004-AA',t:'Principio de razonabilidad',d:'El principio de razonabilidad implica que la actuación de los poderes públicos sea idónea y proporcional a los fines que se persiguen.'},
+      ],
+      'Procedimientos':[
+        {n:'Plazos',t:'Términos procesales',d:'La demanda de amparo debe interponerse dentro del plazo de 30 días hábiles contados desde que se produjo la afectación.'},
+      ]
+    },
+    quick:['amparo','hábeas corpus','inconstitucionalidad','derechos','proceso']
+  },
+  {
+    id:'codigo_civil', num:'004', name:'Código Civil',
+    tag:'Civil', cat:'Civil', arts:'2122', vigencia:'1984', est:'Vigente',
+    desc:'Regula las relaciones jurídicas entre personas: derecho de familia, contratos, obligaciones, sucesiones, derechos reales y responsabilidad civil.',
+    layers:['Artículos','Jurisprudencia','Doctrina','Concordancias'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Sujeto de derecho',d:'La persona humana es sujeto de derecho desde su nacimiento. La vida humana comienza con la concepción. El concebido es sujeto de derecho para todo cuanto le favorece.'},
+        {n:'Art. 140',t:'Acto jurídico',d:'El acto jurídico es la manifestación de voluntad destinada a crear, regular, modificar o extinguir relaciones jurídicas. Para su validez se requiere agente capaz, objeto física y jurídicamente posible.'},
+        {n:'Art. 234',t:'Matrimonio civil',d:'El matrimonio es la unión voluntariamente concertada por un varón y una mujer legalmente aptos para ella, a fin de hacer vida común.'},
+        {n:'Art. 660',t:'Apertura de la sucesión',d:'Desde el momento de la muerte de una persona, los bienes, derechos y obligaciones que constituyen la herencia se transmiten a sus sucesores.'},
+        {n:'Art. 923',t:'Definición de propiedad',d:'La propiedad es el poder jurídico que permite usar, disfrutar, disponer y reivindicar un bien.'},
+        {n:'Art. 1351',t:'Definición de contrato',d:'El contrato es el acuerdo de dos o más partes para crear, regular, modificar o extinguir una relación jurídica patrimonial.'},
+        {n:'Art. 1969',t:'Responsabilidad extracontractual',d:'Aquel que por dolo o culpa causa un daño a otro está obligado a indemnizarlo. El descargo por falta de dolo o culpa corresponde a su autor.'},
+        {n:'Art. 2001',t:'Prescripción',d:'Prescriben, salvo disposición diversa de la ley: a los diez años, la acción personal, la acción real, la que nace de una ejecutoria y la de nulidad del acto jurídico.'},
+      ],
+      'Jurisprudencia':[
+        {n:'CAS 1465-2007',t:'Nulidad de acto jurídico',d:'La nulidad del acto jurídico procede cuando falta un elemento esencial: capacidad, objeto, fin lícito o forma prescrita bajo sanción de nulidad.'},
+        {n:'CAS 2150-2010',t:'Responsabilidad civil',d:'Para configurar la responsabilidad civil extracontractual se requiere: acto antijurídico, daño, nexo causal y factor de atribución.'},
+        {n:'CAS 3667-2010',t:'Prescripción adquisitiva',d:'La prescripción adquisitiva requiere posesión continua, pacífica y pública como propietario durante diez años.'},
+      ],
+      'Doctrina':[
+        {n:'Vidal Ramírez',t:'Acto jurídico',d:'El acto jurídico es el hecho jurídico, voluntario, lícito y con manifestación de voluntad orientada al logro de efectos jurídicos.'},
+        {n:'Arias-Schreiber',t:'Contratos',d:'El contrato como fuente de obligaciones es la expresión más evolucionada de la autonomía privada.'},
+      ],
+      'Concordancias':[
+        {n:'CPC Art. 486',t:'Proceso sumarísimo',d:'Se tramitan en proceso sumarísimo los asuntos contenciosos que no tienen una vía procedimental propia.'},
+      ]
+    },
+    quick:['contrato','propiedad','herencia','matrimonio','responsabilidad','prescripción','nulidad']
+  },
+  {
+    id:'tuo_cpc', num:'005', name:'TUO Código Procesal Civil',
+    tag:'Procesal', cat:'Procesal', arts:'840', vigencia:'1993', est:'Vigente',
+    desc:'Regula los procesos civiles: conocimiento, abreviado, sumarísimo, ejecutivo, medidas cautelares y ejecución de sentencias.',
+    layers:['Artículos','Medidas Cautelares','Recursos','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Tutela jurisdiccional',d:'Toda persona tiene derecho a la tutela jurisdiccional efectiva para el ejercicio o defensa de sus derechos o intereses, con sujeción a un debido proceso.'},
+        {n:'Art. 188',t:'Medios probatorios',d:'Los medios probatorios tienen por finalidad acreditar los hechos expuestos por las partes, producir certeza en el Juez respecto de los puntos controvertidos.'},
+        {n:'Art. 424',t:'Requisitos de demanda',d:'La demanda se presenta por escrito y contendrá: la designación del Juez ante quien se interpone, el nombre, datos de identidad, dirección del demandante.'},
+        {n:'Art. 475',t:'Proceso de conocimiento',d:'Se tramitan en proceso de conocimiento los asuntos contenciosos que no tengan una vía procedimental, sean de estimación patrimonial mayor a 1,000 URP.'},
+      ],
+      'Medidas Cautelares':[
+        {n:'Art. 608',t:'Oportunidad de la cautela',d:'Todo Juez puede, a pedido de parte, dictar medidas cautelares antes o durante el proceso destinadas a asegurar el cumplimiento de la decisión definitiva.'},
+        {n:'Art. 611',t:'Contenido de la medida',d:'El Juez, atendiendo a la naturaleza de la pretensión principal y a fin de lograr la eficacia de la decisión definitiva, dictará medida cautelar.'},
+        {n:'Art. 642',t:'Embargo',d:'Cuando la pretensión principal sea apreciable en dinero, se puede solicitar embargo. Este puede ser en forma de: depósito, inscripción, retención, intervención.'},
+      ],
+      'Recursos':[
+        {n:'Art. 364',t:'Recurso de apelación',d:'El recurso de apelación tiene por objeto que el órgano jurisdiccional superior examine, a solicitud de parte, la resolución que les produzca agravio.'},
+        {n:'Art. 384',t:'Recurso de casación',d:'El recurso de casación tiene por fines esenciales la adecuada aplicación del derecho objetivo al caso concreto y la uniformidad de la jurisprudencia.'},
+      ],
+      'Doctrina':[
+        {n:'Monroy Gálvez',t:'Proceso civil',d:'El proceso civil es el conjunto de actos procesales mediante los cuales el Estado, a través del órgano jurisdiccional, resuelve conflictos de intereses.'},
+      ]
+    },
+    quick:['tutela','medida cautelar','embargo','apelación','casación','demanda','prueba']
+  },
+  {
+    id:'codigo_penal', num:'006', name:'Código Penal',
+    tag:'Penal', cat:'Penal', arts:'459', vigencia:'1991', est:'Vigente',
+    desc:'Define los delitos contra la vida, el patrimonio, la libertad, la administración pública, el orden económico y las penas aplicables en el ordenamiento jurídico peruano.',
+    layers:['Artículos','Jurisprudencia','Penas','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 11',t:'Delito y falta',d:'Son delitos y faltas las acciones u omisiones dolosas o culposas penadas por la ley.'},
+        {n:'Art. 20',t:'Causas de inimputabilidad',d:'Está exento de responsabilidad penal el que actúa en legítima defensa de bienes jurídicos propios o de terceros.'},
+        {n:'Art. 45',t:'Determinación de la pena',d:'El juez, al momento de fundamentar y determinar la pena, tiene en cuenta las carencias sociales que hubiere sufrido el agente.'},
+        {n:'Art. 106',t:'Homicidio simple',d:'El que mata a otro será reprimido con pena privativa de libertad no menor de seis ni mayor de veinte años.'},
+        {n:'Art. 152',t:'Secuestro',d:'Será reprimido con pena privativa de libertad no menor de veinte ni mayor de treinta años el que priva a otro de su libertad personal.'},
+        {n:'Art. 185',t:'Hurto simple',d:'El que, para obtener provecho, se apodera ilegítimamente de un bien mueble, total o parcialmente ajeno, sustrayéndolo del lugar donde se encuentra.'},
+        {n:'Art. 189',t:'Robo agravado',d:'La pena será no menor de doce ni mayor de veinte años si el robo es cometido: en casa habitada, durante la noche, con el concurso de dos o más personas.'},
+        {n:'Art. 296',t:'Tráfico ilícito de drogas',d:'El que promueve, favorece o facilita el consumo ilegal de drogas tóxicas, estupefacientes o sustancias psicotrópicas será reprimido.'},
+      ],
+      'Jurisprudencia':[
+        {n:'RN 3984-2007',t:'Legítima defensa',d:'La legítima defensa requiere agresión ilegítima actual o inminente, necesidad racional del medio empleado y falta de provocación suficiente.'},
+        {n:'AP 6-2015',t:'Acuerdo Plenario robo',d:'El robo agravado requiere: sustracción de bien ajeno, uso de violencia o amenaza, concurrencia de agravantes del Art. 189.'},
+        {n:'CAS 626-2013',t:'Prisión preventiva',d:'La prisión preventiva es una medida excepcional que requiere los tres presupuestos del Art. 268 NCPP concurrentes.'},
+      ],
+      'Penas':[
+        {n:'Art. 28',t:'Clases de pena',d:'Las penas aplicables son: privativa de libertad, restrictiva de libertad, limitativas de derechos y multa.'},
+        {n:'Art. 36',t:'Inhabilitación',d:'La inhabilitación produce: privación de la función, cargo o comisión, incapacidad para obtener mandato, cargo o comisión.'},
+      ],
+      'Doctrina':[
+        {n:'Bramont-Arias',t:'Parte general',d:'El derecho penal es el conjunto de normas jurídicas que regulan el poder punitivo del Estado, definiendo los delitos y asignando penas.'},
+        {n:'Villa Stein',t:'Culpabilidad',d:'La culpabilidad es el juicio de reproche personal que se formula contra el autor por la realización del acto antijurídico.'},
+      ]
+    },
+    quick:['homicidio','robo','hurto','legítima defensa','pena','prisión','dolo','culpa']
+  },
+  {
+    id:'ncpp', num:'007', name:'Nuevo Código Procesal Penal (D.L. 957)',
+    tag:'Procesal', cat:'Penal', arts:'566', vigencia:'2004', est:'Vigente',
+    desc:'Regula el proceso penal acusatorio garantista: investigación preparatoria, etapa intermedia y juzgamiento oral. Rige en todo el Perú.',
+    layers:['Artículos','Prisión Preventiva','Recursos','Jurisprudencia'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Justicia penal',d:'La justicia penal es gratuita y la ejerce el Poder Judicial con exclusividad. Se imparte con imparcialidad por los órganos jurisdiccionales competentes.'},
+        {n:'Art. 71',t:'Derechos del imputado',d:'El imputado puede hacer valer por sí mismo, o a través de su Abogado Defensor, los derechos que la Constitución reconoce.'},
+        {n:'Art. 130',t:'Citación',d:'Cuando sea necesaria la presencia de una persona, el Juez o el Fiscal según el caso, ordenará la citación, notificación o conducción compulsiva.'},
+        {n:'Art. 160',t:'Confesión',d:'La confesión es la admisión de los cargos o imputación formulada en su contra por el imputado.'},
+      ],
+      'Prisión Preventiva':[
+        {n:'Art. 268',t:'Presupuestos',d:'El Juez, a solicitud del Ministerio Público, podrá dictar mandato de prisión preventiva si: existen fundados y graves elementos de convicción, la sanción probable sea mayor de 4 años y peligro de fuga u obstaculización.'},
+        {n:'Art. 269',t:'Peligro de fuga',d:'Para calificar el peligro de fuga, el Juez tendrá en cuenta: arraigo del imputado, gravedad de la pena, importancia del daño causado, comportamiento procesal.'},
+        {n:'Art. 272',t:'Duración',d:'La prisión preventiva no durará más de nueve meses. En procesos complejos, el plazo límite es de dieciocho meses. Para crimen organizado, treinta y seis meses.'},
+      ],
+      'Recursos':[
+        {n:'Art. 404',t:'Derecho a recurrir',d:'Las resoluciones judiciales son impugnables sólo por los medios y en los casos expresamente establecidos por la Ley.'},
+        {n:'Art. 427',t:'Casación',d:'El recurso de casación procede contra las sentencias definitivas, los autos de sobreseimiento y los autos que pongan fin al procedimiento.'},
+      ],
+      'Jurisprudencia':[
+        {n:'CAS 626-2013 Moquegua',t:'Prisión preventiva',d:'El peligro procesal es el elemento más importante de la prisión preventiva. Debe ser evaluado en concreto, no presunto.'},
+        {n:'AP 2-2019',t:'Control de acusación',d:'El Juez de Investigación Preparatoria controla la acusación fiscal en la etapa intermedia.'},
+      ]
+    },
+    quick:['prisión preventiva','imputado','investigación','fiscal','audiencia','peligro de fuga']
+  },
+  {
+    id:'cpp638', num:'008', name:'Código de Procedimientos Penales (D.L. 638)',
+    tag:'Penal', cat:'Penal', arts:'356', vigencia:'1940', est:'Parcial',
+    desc:'Código de enjuiciamiento criminal anterior. Aún vigente para determinados distritos judiciales y procesos iniciados bajo su vigencia.',
+    layers:['Artículos','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 72',t:'Instrucción penal',d:'Abierta la instrucción, el juez penal procederá a la investigación del delito, sus autores, cómplices y encubridores.'},
+        {n:'Art. 202',t:'Acusación fiscal',d:'El Fiscal Superior formulará acusación sustancial si estima que los hechos constituyen delito y que hay prueba suficiente para condenar al inculpado.'},
+      ],
+      'Doctrina':[
+        {n:'San Martín Castro',t:'Sistema mixto',d:'El Código de 1940 adopta un sistema procesal mixto con una fase de instrucción inquisitiva y un juzgamiento oral acusatorio.'},
+      ]
+    },
+    quick:['instrucción','acusación','juzgamiento','inculpado']
+  },
+  {
+    id:'cep', num:'009', name:'Código de Ejecución Penal',
+    tag:'Penal', cat:'Penal', arts:'186', vigencia:'1991', est:'Vigente',
+    desc:'Regula la ejecución de las penas y medidas de seguridad. Establece el sistema penitenciario, los beneficios penitenciarios y la reinserción social.',
+    layers:['Artículos','Beneficios Penitenciarios','Jurisprudencia'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Objeto',d:'La ejecución penal tiene por objeto la reeducación, rehabilitación y reincorporación del penado a la sociedad.'},
+        {n:'Art. 60',t:'Redención de pena',d:'El interno redime la pena mediante el trabajo o la educación a razón de un día de pena por dos días de labor efectiva o estudio.'},
+      ],
+      'Beneficios Penitenciarios':[
+        {n:'Art. 50',t:'Semilibertad',d:'El beneficio penitenciario de semilibertad permite al penado cumplir en libertad parte de su pena, siempre que haya cumplido un tercio de la pena.'},
+        {n:'Art. 54',t:'Liberación condicional',d:'La liberación condicional se concede al sentenciado que ha cumplido la mitad de la pena, previo informe del Consejo Técnico Penitenciario.'},
+      ],
+      'Jurisprudencia':[
+        {n:'TC 0033-2007',t:'Reinserción social',d:'El Estado debe garantizar las condiciones necesarias para que el penado pueda lograr su reinserción a la sociedad.'},
+      ]
+    },
+    quick:['semilibertad','redención','beneficio','penitenciario','reinserción']
+  },
+  {
+    id:'cpm', num:'010', name:'Código Penal Militar Policial',
+    tag:'Militar', cat:'Militar', arts:'113', vigencia:'2010', est:'Vigente',
+    desc:'Regula los delitos y faltas de función cometidos por militares y policías. Define el fuero privativo militar policial.',
+    layers:['Artículos','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Ámbito de aplicación',d:'El Código Penal Militar Policial regula los delitos de función que pudieran cometer los militares y policías en situación de actividad.'},
+        {n:'Art. 85',t:'Desobediencia',d:'El militar o policía que se negare a obedecer una orden de servicio o no la cumpliere, será sancionado con pena privativa de libertad.'},
+      ],
+      'Doctrina':[
+        {n:'Jiménez Nieto',t:'Fuero militar',d:'El fuero militar policial es una jurisdicción especializada que conoce los delitos cometidos por militares y policías en ejercicio de sus funciones.'},
+      ]
+    },
+    quick:['fuero militar','desobediencia','función','policía','militar']
+  },
+  {
+    id:'cjmp', num:'011', name:'Código de Justicia Militar Policial',
+    tag:'Militar', cat:'Militar', arts:'156', vigencia:'2010', est:'Vigente',
+    desc:'Regula el proceso ante el Fuero Militar Policial: investigación, juzgamiento y recursos ante los órganos de la justicia castrense.',
+    layers:['Artículos','Procedimientos'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Finalidad',d:'La Justicia Militar Policial tiene como finalidad la investigación, el juzgamiento y la sanción de los delitos de función de los militares y policías.'},
+        {n:'Art. 26',t:'Juicio oral',d:'El juicio oral es la etapa principal del proceso penal militar policial. Se realiza sobre la base de la acusación.'},
+      ],
+      'Procedimientos':[
+        {n:'Etapas',t:'Fases del proceso',d:'El proceso ante el Fuero Militar Policial consta de: investigación preparatoria, etapa intermedia y juzgamiento oral.'},
+      ]
+    },
+    quick:['justicia militar','juzgamiento','proceso','tribunal']
+  },
+  {
+    id:'cna', num:'012', name:'Código de los Niños y Adolescentes',
+    tag:'Familia', cat:'Familia', arts:'312', vigencia:'2000', est:'Vigente',
+    desc:'Regula los derechos, deberes y la responsabilidad civil de los menores de edad. Establece el sistema de protección integral del niño y adolescente.',
+    layers:['Artículos','Derechos','Jurisprudencia','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Definición',d:'Se considera niño a todo ser humano desde su concepción hasta cumplir los doce años de edad y adolescente desde los doce hasta cumplir los dieciocho años de edad.'},
+        {n:'Art. 74',t:'Patria potestad',d:'Son deberes y derechos de los padres que ejercen la Patria Potestad: velar por el desarrollo integral de sus hijos, proveer su sostenimiento y educación.'},
+        {n:'Art. 85',t:'Juez de Familia',d:'El Juez de Familia es competente para conocer la demanda sobre Tenencia y Régimen de Visitas.'},
+      ],
+      'Derechos':[
+        {n:'Art. 4',t:'Integridad personal',d:'El niño y el adolescente tienen derecho a que se respete su integridad moral, psíquica y física y a su libre desarrollo y bienestar.'},
+        {n:'Art. 15',t:'Educación',d:'El Estado garantiza la gratuidad de la enseñanza para quienes no puedan sufragar su educación y los programas de becas.'},
+      ],
+      'Jurisprudencia':[
+        {n:'CAS 2011-Lima',t:'Interés superior del niño',d:'El principio del interés superior del niño es el criterio rector para resolver las controversias que involucran a menores de edad.'},
+      ],
+      'Doctrina':[
+        {n:'Chunga Lamonja',t:'Derecho del niño',d:'El Código de los Niños y Adolescentes consagra la doctrina de la protección integral como paradigma rector.'},
+      ]
+    },
+    quick:['patria potestad','tenencia','alimentos','interés superior','menor','tutela']
+  },
+  {
+    id:'crpa', num:'013', name:'Código de Responsabilidad Penal de Adolescentes',
+    tag:'Familia', cat:'Familia', arts:'232', vigencia:'2017', est:'Vigente',
+    desc:'Regula el sistema de justicia penal especializado para adolescentes en conflicto con la ley penal, entre catorce y dieciocho años.',
+    layers:['Artículos','Medidas Socioeducativas','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Ámbito',d:'El presente Código regula la responsabilidad penal especial de los adolescentes entre catorce y menos de dieciocho años de edad.'},
+        {n:'Art. 156',t:'Internamiento',d:'El internamiento es la medida socioeducativa privativa de libertad de carácter excepcional y de último recurso.'},
+      ],
+      'Medidas Socioeducativas':[
+        {n:'Art. 155',t:'Tipos de medidas',d:'Las medidas socioeducativas son: amonestación, libertad asistida, prestación de servicios a la comunidad, libertad restringida e internamiento.'},
+      ],
+      'Doctrina':[
+        {n:'Chunga Lamonja',t:'Justicia juvenil',d:'El sistema de justicia juvenil debe orientarse a la rehabilitación y reintegración social del adolescente en conflicto con la ley.'},
+      ]
+    },
+    quick:['adolescente','medida socioeducativa','internamiento','rehabilitación','menor infractor']
+  },
+  {
+    id:'cod_comercio', num:'014', name:'Código de Comercio',
+    tag:'Comercial', cat:'Comercial', arts:'955', vigencia:'1902', est:'Parcial',
+    desc:'Regula las relaciones mercantiles, los actos de comercio, los comerciantes individuales y los contratos mercantiles. Complementado por leyes especiales.',
+    layers:['Artículos','Contratos Mercantiles','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Definición de comerciante',d:'Son comerciantes para los efectos de este Código los que, teniendo capacidad legal para ejercer el comercio, se dedican a él habitualmente.'},
+        {n:'Art. 50',t:'Libros de comercio',d:'Todo comerciante deberá llevar necesariamente: libro diario, libro mayor y libro de inventarios y balances.'},
+      ],
+      'Contratos Mercantiles':[
+        {n:'Art. 238',t:'Contrato de seguro',d:'El contrato de seguro es aquel por el cual el asegurador se obliga a indemnizar el daño sufrido por el asegurado.'},
+      ],
+      'Doctrina':[
+        {n:'Beaumont Callirgos',t:'Derecho mercantil',d:'El Derecho Mercantil regula los actos de comercio y las relaciones jurídicas entre comerciantes.'},
+      ]
+    },
+    quick:['comerciante','acto de comercio','contrato mercantil','empresa','libro diario']
+  },
+  {
+    id:'cod_consumidor', num:'015', name:'Código de Protección del Consumidor',
+    tag:'Comercial', cat:'Comercial', arts:'157', vigencia:'2010', est:'Vigente',
+    desc:'Regula la protección de los derechos de los consumidores e impone las obligaciones de los proveedores en las relaciones de consumo.',
+    layers:['Artículos','Procedimiento INDECOPI','Jurisprudencia'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Finalidad',d:'El presente Código tiene la finalidad de que los consumidores accedan a productos y servicios idóneos y que gocen de los derechos y mecanismos efectivos.'},
+        {n:'Art. 18',t:'Idoneidad',d:'Se entiende por idoneidad la correspondencia entre lo que un consumidor espera y lo que efectivamente recibe, en función a lo que se le hubiera ofrecido.'},
+        {n:'Art. 97',t:'Responsabilidad por productos defectuosos',d:'El proveedor que coloque en el mercado un producto o servicio defectuoso responde solidariamente por los daños y perjuicios ocasionados.'},
+      ],
+      'Procedimiento INDECOPI':[
+        {n:'Art. 106',t:'Órganos resolutivos',d:'El INDECOPI tiene competencia para conocer las infracciones al presente Código y sancionar a los proveedores.'},
+        {n:'Art. 118',t:'Denuncia',d:'Cualquier consumidor puede presentar denuncia ante los órganos resolutivos de procedimientos sumarísimos del INDECOPI.'},
+      ],
+      'Jurisprudencia':[
+        {n:'Res. 3337-2020-SPC',t:'Deber de idoneidad',d:'El deber de idoneidad obliga al proveedor a entregar productos o servicios acordes con lo ofertado o publicitado.'},
+      ]
+    },
+    quick:['consumidor','proveedor','idoneidad','INDECOPI','denuncia','defectuoso']
+  },
+  {
+    id:'tributario', num:'016', name:'Código Tributario (TUO)',
+    tag:'Tributario', cat:'Tributario', arts:'207', vigencia:'1999', est:'Vigente',
+    desc:'Regula las relaciones jurídicas tributarias entre el Estado y los contribuyentes: obligación tributaria, deuda, sanciones y procedimientos ante SUNAT.',
+    layers:['Artículos','Procedimientos SUNAT','Jurisprudencia','Doctrina'],
+    data:{
+      'Artículos':[
+        {n:'Art. 1',t:'Obligación tributaria',d:'La obligación tributaria, que es de derecho público, es el vínculo entre el acreedor y el deudor tributario, establecido por ley, que tiene por objeto el cumplimiento de la prestación tributaria.'},
+        {n:'Art. 28',t:'Deuda tributaria',d:'La deuda tributaria está constituida por el tributo, las multas y los intereses.'},
+        {n:'Art. 43',t:'Prescripción',d:'La acción de la Administración Tributaria para determinar la obligación tributaria, así como la acción para exigir su pago y aplicar sanciones prescribe a los cuatro años.'},
+        {n:'Art. 112',t:'Procedimientos tributarios',d:'Los procedimientos tributarios son: procedimiento de fiscalización, procedimiento de cobranza coactiva, procedimiento contencioso tributario, procedimiento no contencioso.'},
+      ],
+      'Procedimientos SUNAT':[
+        {n:'Art. 61',t:'Fiscalización',d:'La determinación de la obligación tributaria efectuada por el deudor tributario está sujeta a fiscalización o verificación por la Administración Tributaria.'},
+        {n:'Art. 114',t:'Cobranza coactiva',d:'Es facultad de la Administración Tributaria el recaudar los tributos. La cobranza coactiva se inicia con la notificación al deudor tributario.'},
+      ],
+      'Jurisprudencia':[
+        {n:'RTF 09049-3-2007',t:'Principio de legalidad',d:'El principio de legalidad tributaria implica que sólo por ley puede crearse, modificarse, suprimirse o exonerarse tributos.'},
+      ],
+      'Doctrina':[
+        {n:'Robles Moreno',t:'Obligación tributaria',d:'La obligación tributaria nace cuando se realiza el hecho previsto en la ley como generador de dicha obligación.'},
+      ]
+    },
+    quick:['IGV','tributo','prescripción','SUNAT','fiscalización','deuda tributaria','multa']
+  },
+  {
+    id:'derecho_comparado', num:'017', name:'Derecho Comparado Latinoamericano',
+    tag:'Internacional', cat:'Internacional', arts:'Multi', vigencia:'Actualizado', est:'Continuo',
+    desc:'Base de legislación comparada: Colombia (COGEP adaptado), Ecuador, Bolivia y principales sistemas jurídicos de Latinoamérica. Derecho privado y público comparado.',
+    layers:['Colombia','Ecuador','Bolivia','Doctrina'],
+    data:{
+      'Colombia':[
+        {n:'CPC Colombia',t:'Código de Procedimiento Civil',d:'Regula los procesos civiles, de familia y agrarios en Colombia. Aplicable conjuntamente con el Código General del Proceso (CGP).'},
+        {n:'CP Colombia Art. 29',t:'Debido proceso',d:'El debido proceso se aplicará a toda clase de actuaciones judiciales y administrativas. Nadie podrá ser juzgado sino conforme a leyes preexistentes.'},
+      ],
+      'Ecuador':[
+        {n:'COGEP',t:'Código Orgánico General de Procesos',d:'Regula la actividad procesal en Ecuador. Establece el proceso civil ordinario, sumario, ejecutivo, voluntario y monitorio.'},
+        {n:'COIP Ecuador',t:'Código Orgánico Integral Penal',d:'Codifica la legislación penal, procesal penal y de ejecución de penas en Ecuador.'},
+      ],
+      'Bolivia':[
+        {n:'CPC Bolivia',t:'Código Procesal Civil',d:'Regula los procesos civiles, voluntarios y de ejecución en Bolivia. Vigente desde 2015.'},
+        {n:'CP Bolivia',t:'Código Penal Boliviano',d:'Define los delitos y las penas aplicables en Bolivia, con especial énfasis en delitos contra la Nación.'},
+      ],
+      'Doctrina':[
+        {n:'Morales Molina',t:'Derecho procesal comparado',d:'El estudio comparado de los sistemas procesales latinoamericanos revela la tendencia hacia el proceso oral y acusatorio.'},
+      ]
+    },
+    quick:['Colombia','Ecuador','Bolivia','COGEP','CGP','derecho comparado','COIP']
+  },
+  {
+    id:'jurisprudencia_int', num:'018', name:'Jurisprudencia Internacional',
+    tag:'Internacional', cat:'Internacional', arts:'Base', vigencia:'Actualizado', est:'Continuo',
+    desc:'Base de jurisprudencia de la Corte IDH, CIDH, CIJ y principales cortes supremas de Latinoamérica. Precedentes vinculantes y consultivos.',
+    layers:['Corte IDH','CIDH','Corte Suprema Perú','Doctrina'],
+    data:{
+      'Corte IDH':[
+        {n:'Caso Barrios Altos',t:'Leyes de amnistía',d:'Las leyes de amnistía que impidan la investigación de graves violaciones de derechos humanos son incompatibles con la Convención Americana.'},
+        {n:'Caso Castillo Petruzzi',t:'Garantías del debido proceso',d:'El Estado debe garantizar el pleno ejercicio del derecho de defensa en todas las etapas del proceso, incluyendo la investigación.'},
+        {n:'Caso Vélez Loor',t:'Detención migratoria',d:'La detención de personas migrantes debe ser excepcional, necesaria, proporcional y sujeta a control judicial.'},
+      ],
+      'CIDH':[
+        {n:'Informe 2022',t:'Prisión preventiva en LATAM',d:'La CIDH observa el uso excesivo de la prisión preventiva en Latinoamérica como uno de los principales problemas del sistema penal.'},
+      ],
+      'Corte Suprema Perú':[
+        {n:'CAS 2090-2019',t:'Principio de proporcionalidad',d:'El principio de proporcionalidad exige que la medida adoptada sea idónea, necesaria y proporcional en sentido estricto.'},
+        {n:'AP 1-2022',t:'Acuerdo Plenario Penal',d:'Los Acuerdos Plenarios constituyen doctrina jurisprudencial vinculante para los órganos jurisdiccionales del Perú.'},
+      ],
+      'Doctrina':[
+        {n:'Bidart Campos',t:'Control de convencionalidad',d:'El control de convencionalidad obliga a los jueces nacionales a verificar la compatibilidad de las normas internas con la CADH.'},
+      ]
+    },
+    quick:['Corte IDH','CIDH','convencionalidad','derechos humanos','CAS','precedente','CADH']
+  }
+];
+
+/* ════════════════════════════════
+   RENDER GRID
+════════════════════════════════ */
+const grid = document.getElementById('codesGrid');
+const noRes = document.getElementById('noResults');
+
+function renderGrid(data){
+  grid.innerHTML = '';
+  if(!data.length){
+    noRes.style.display='block'; grid.style.display='none'; return;
+  }
+  noRes.style.display='none'; grid.style.display='grid';
+  data.forEach((c,i)=>{
+    const el = document.createElement('div');
+    el.className = 'code-card';
+    el.style.setProperty('--i',i);
+    el.innerHTML = `
+      <span class="cc-num">§ ${c.num}</span>
+      <span class="cc-sym">§</span>
+      <div class="cc-name">${c.name}</div>
+      <span class="cc-tag">${c.tag}</span>
+      <p class="cc-desc">${c.desc.slice(0,90)}…</p>
+      <span class="cc-arrow">↗</span>
+      <div class="cc-glow"></div>
+    `;
+    el.addEventListener('click',()=>openPanel(c));
+    grid.appendChild(el);
+    // stagger entrance
+    requestAnimationFrame(()=>{
+      setTimeout(()=>el.style.opacity='1',i*40);
+    });
+  });
+}
+
+renderGrid(DB);
+
+/* filters */
+document.getElementById('filters').addEventListener('click',e=>{
+  if(!e.target.classList.contains('fpill')) return;
+  document.querySelectorAll('.fpill').forEach(p=>p.classList.remove('on'));
+  e.target.classList.add('on');
+  applyFilters();
+});
+document.getElementById('globalSearch').addEventListener('input',applyFilters);
+
+/* ════════════════════════════════
+   SUPABASE — búsqueda en tiempo real
+════════════════════════════════ */
+const SUPA_URL = 'https://glneakucswdawdodgffn.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsbmVha3Vjc3dkYXdkb2RnZmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Njg0NjAsImV4cCI6MjA5MDI0NDQ2MH0._cjZ-wXDM3G-njZMmhgwZrf5whH18tH553f0IQlbJr4';
+const _sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// Estado del buscador global Supabase
+let _sbTimer = null;
+let _sbPanel = null; // panel de resultados Supabase global
+
+function getSbPanel(){
+  if(!_sbPanel){
+    _sbPanel = document.createElement('div');
+    _sbPanel.id = 'sb-results-panel';
+    _sbPanel.style.cssText = `
+      position:absolute;left:0;right:0;top:100%;z-index:9000;
+      background:#131310;border:1px solid rgba(184,150,46,.3);
+      border-top:none;max-height:400px;overflow-y:auto;
+      box-shadow:0 20px 60px rgba(0,0,0,.6);
+    `;
+    const wrap = document.querySelector('.g-search');
+    wrap.style.position='relative';
+    wrap.appendChild(_sbPanel);
+  }
+  return _sbPanel;
+}
+
+function closeSbPanel(){
+  if(_sbPanel){ _sbPanel.innerHTML=''; _sbPanel.style.display='none'; }
+}
+
+async function supabaseGlobalSearch(q){
+  const panel = getSbPanel();
+  panel.style.display='block';
+  panel.innerHTML = `<div style="padding:1rem 1.5rem;font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.12em;color:rgba(184,150,46,.5);text-transform:uppercase">Buscando en base legislativa…</div>`;
+
+  try {
+    const { data, error } = await _sb
+      .from('leyes_hj_global')
+      .select('articulo_nro, sumilla, contenido, metadata')
+      .textSearch('busqueda_vector', q, { config: 'spanish', type: 'websearch' })
+      .limit(12);
+
+    if(error){
+      panel.innerHTML = `<div style="padding:1rem 1.5rem;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:rgba(255,100,100,.5)">Error de conexión: ${error.message}</div>`;
+      return;
+    }
+
+    if(!data || !data.length){
+      panel.innerHTML = `<div style="padding:1.5rem;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.1em;color:rgba(255,255,255,.2)">⚖ Sin resultados para "<strong style="color:rgba(184,150,46,.6)">${q}</strong>"</div>`;
+      return;
+    }
+
+    const meta = data[0]?.metadata || {};
+    const codigo = meta.codigo || 'Base Legislativa';
+    let html = `<div style="padding:.6rem 1.5rem;font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:rgba(184,150,46,.4);border-bottom:1px solid rgba(255,255,255,.05)">${data.length} resultado${data.length!==1?'s':''} — ${codigo}</div>`;
+    data.forEach(row=>{
+      const art = row.articulo_nro || '';
+      const sum = row.sumilla || '';
+      const cont = (row.contenido || '').slice(0, 130);
+      const qRe = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+      const contHl = cont.replace(qRe, '<mark style="background:rgba(184,150,46,.2);color:#d4af58;padding:0 2px">$1</mark>');
+      html += `
+        <div class="sb-row" style="padding:.85rem 1.5rem;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .18s"
+          onmouseover="this.style.background='rgba(184,150,46,.05)'"
+          onmouseout="this.style.background=''"
+          onclick="sbRowClick(this,'${art.replace(/'/g,"\\'")}','${sum.replace(/'/g,"\\'")}','${(row.contenido||'').replace(/'/g,"\\'").replace(/\n/g,' ')}')">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.08em;color:#b8962e;margin-bottom:.25rem">${art}</div>
+          <div style="font-family:'Playfair Display',serif;font-size:.88rem;font-weight:700;color:#faf8f2;margin-bottom:.25rem;line-height:1.3">${sum}</div>
+          <div style="font-size:.76rem;color:rgba(255,255,255,.38);line-height:1.6">${contHl}…</div>
+        </div>
+      `;
+    });
+    panel.innerHTML = html;
+  } catch(e){
+    panel.innerHTML = `<div style="padding:1rem 1.5rem;font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:rgba(255,100,100,.5)">Error: ${e.message}</div>`;
+  }
+}
+
+function sbRowClick(el, art, sum, contenido){
+  // Abre un modal/overlay con el artículo completo
+  let modal = document.getElementById('sb-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id='sb-modal';
+    modal.style.cssText=`position:fixed;inset:0;z-index:9500;background:rgba(10,10,8,.92);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:2rem`;
+    modal.innerHTML=`
+      <div style="background:#1c1c18;border:1px solid rgba(184,150,46,.25);max-width:680px;width:100%;max-height:80vh;overflow-y:auto;padding:2.5rem;position:relative">
+        <button onclick="document.getElementById('sb-modal').style.display='none'"
+          style="position:absolute;top:1.2rem;right:1.2rem;background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);width:32px;height:32px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.8rem;transition:all .2s"
+          onmouseover="this.style.borderColor='#b8962e';this.style.color='#b8962e'"
+          onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.color='rgba(255,255,255,.4)'">✕</button>
+        <div id="sb-modal-art" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.1em;color:#b8962e;margin-bottom:.5rem"></div>
+        <div id="sb-modal-sum" style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:#faf8f2;margin-bottom:1.2rem;line-height:1.3"></div>
+        <div id="sb-modal-cont" style="font-size:.88rem;color:rgba(255,255,255,.6);line-height:1.9"></div>
+        <div style="display:flex;gap:.5rem;margin-top:1.5rem">
+          <button onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('sb-modal-art').textContent+' — '+document.getElementById('sb-modal-sum').textContent+': '+document.getElementById('sb-modal-cont').textContent)"
+            style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.35);padding:.4rem .9rem;cursor:pointer;transition:all .2s"
+            onmouseover="this.style.borderColor='#b8962e';this.style.color='#b8962e'"
+            onmouseout="this.style.borderColor='rgba(255,255,255,.1)';this.style.color='rgba(255,255,255,.35)'">📋 Copiar</button>
+          <button onclick="document.getElementById('sb-modal').style.display='none'"
+            style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;background:#b8962e;color:#0a0a08;border:none;padding:.4rem 1.2rem;cursor:pointer;transition:background .2s"
+            onmouseover="this.style.background='#d4af58'"
+            onmouseout="this.style.background='#b8962e'">Cerrar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('sb-modal-art').textContent = art;
+  document.getElementById('sb-modal-sum').textContent = sum;
+  document.getElementById('sb-modal-cont').textContent = contenido;
+  modal.style.display='flex';
+  closeSbPanel();
+}
+
+// Cierra panel al hacer click fuera
+document.addEventListener('click',e=>{
+  const wrap = document.querySelector('.g-search');
+  if(!wrap.contains(e.target)) closeSbPanel();
+});
+
+// Tecla Escape cierra modal y panel
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    closeSbPanel();
+    const modal=document.getElementById('sb-modal');
+    if(modal) modal.style.display='none';
+  }
+});
+
+function applyFilters(){
+  const cat = document.querySelector('.fpill.on').dataset.f;
+  const q = document.getElementById('globalSearch').value.toLowerCase().trim();
+
+  // filtro local en los cards siempre
+  renderGrid(DB.filter(c=>{
+    const mCat = cat==='all' || c.cat===cat;
+    const mQ = !q || c.name.toLowerCase().includes(q) || c.tag.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q);
+    return mCat && mQ;
+  }));
+
+  // búsqueda Supabase: debounce 350ms, mínimo 3 caracteres
+  clearTimeout(_sbTimer);
+  if(q.length >= 3){
+    _sbTimer = setTimeout(()=>supabaseGlobalSearch(q), 350);
+  } else {
+    closeSbPanel();
+  }
+}
+
+/* ════════════════════════════════
+   PANEL
+════════════════════════════════ */
+let currentCode = null;
+let currentLayer = null;
+
+function openPanel(code){
+  currentCode = code;
+  currentLayer = code.layers[0];
+  // sidebar
+  document.getElementById('psNum').textContent = `§ ${code.num}`;
+  document.getElementById('psTitle').textContent = code.name;
+  document.getElementById('psTag').textContent = `${code.tag}`;
+  document.getElementById('psMeta').innerHTML = `
+    <div class="pm-item"><div class="pm-l">Artículos</div><div class="pm-v">${code.arts}</div></div>
+    <div class="pm-item"><div class="pm-l">Desde</div><div class="pm-v">${code.vigencia}</div></div>
+    <div class="pm-item"><div class="pm-l">Estado</div><div class="pm-v">${code.est}</div></div>
+    <div class="pm-item"><div class="pm-l">Categoría</div><div class="pm-v">${code.tag}</div></div>
+  `;
+  document.getElementById('psDesc').textContent = code.desc;
+  // layer tabs in sidebar
+  document.getElementById('psLayers').innerHTML = code.layers.map((l,i)=>`
+    <button class="layer-tab ${i===0?'on':''}" data-l="${l}">${l}</button>
+  `).join('');
+  document.querySelectorAll('.layer-tab').forEach(t=>t.addEventListener('click',function(){
+    document.querySelectorAll('.layer-tab').forEach(x=>x.classList.remove('on'));
+    this.classList.add('on');
+    currentLayer = this.dataset.l;
+    document.querySelectorAll('.lp').forEach(x=>{x.classList.remove('on');if(x.dataset.l===currentLayer)x.classList.add('on')});
+    renderResults('');
+  }));
+
+  // panel main
+  document.getElementById('pmInput').value='';
+  document.getElementById('pmLayers').innerHTML = code.layers.map((l,i)=>`
+    <button class="lp ${i===0?'on':''}" data-l="${l}">${l}</button>
+  `).join('');
+  document.querySelectorAll('.lp').forEach(t=>t.addEventListener('click',function(){
+    document.querySelectorAll('.lp').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.layer-tab').forEach(x=>{x.classList.remove('on');if(x.dataset.l===this.dataset.l)x.classList.add('on')});
+    this.classList.add('on');
+    currentLayer = this.dataset.l;
+    renderResults(document.getElementById('pmInput').value);
+  }));
+
+  renderResults('');
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('backdrop').classList.add('open');
+  document.body.style.overflow='hidden';
+  document.getElementById('pmInput').focus();
+}
+
+function renderResults(q){
+  const res = document.getElementById('pmResults');
+  if(!currentCode || !currentLayer) return;
+
+  const layerData = currentCode.data[currentLayer] || [];
+  const query = q.trim().toLowerCase();
+
+  // — búsqueda Supabase en el panel cuando hay 3+ caracteres —
+  if(query.length >= 3){
+    res.innerHTML = `<div style="padding:2rem;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(184,150,46,.4)">Consultando base legislativa…</div>`;
+    _sb.from('leyes_hj_global')
+      .select('articulo_nro, sumilla, contenido, metadata')
+      .textSearch('busqueda_vector', query, { config:'spanish', type:'websearch' })
+      .limit(20)
+      .then(({data, error})=>{
+        if(error || !data){
+          // fallback a búsqueda local si Supabase falla
+          renderResultsLocal(q, res, layerData, query);
+          return;
+        }
+        if(!data.length){
+          // sin resultados en Supabase → búsqueda local
+          renderResultsLocal(q, res, layerData, query);
+          return;
+        }
+        // mostrar resultados de Supabase
+        res.innerHTML='';
+        const sec = document.createElement('div');
+        sec.className='result-section';
+        const cnt = data.length;
+        sec.innerHTML=`<div class="rs-label">Constitución & Leyes — Supabase <span class="rs-count">${cnt}</span></div>`;
+        data.forEach(row=>{
+          const a = { n: row.articulo_nro||'', t: row.sumilla||'', d: row.contenido||'' };
+          sec.appendChild(makeRow(a, query));
+        });
+        res.appendChild(sec);
+        // también mostrar coincidencias locales si hay
+        renderResultsLocalAppend(q, res, layerData, query);
+      });
+    return;
+  }
+
+  renderResultsLocal(q, res, layerData, query);
+}
+
+function renderResultsLocal(q, res, layerData, query){
+
+function renderResultsLocal(q, res, layerData, query){
+  if(!query){
+    // show intro + quick tags
+    res.innerHTML = `
+      <div class="pm-intro">
+        <div class="pi-title">${currentCode.name}</div>
+        <p class="pi-sub">Estás explorando la capa <strong style="color:var(--gold)">${currentLayer}</strong>. Escribe un término para buscar artículos, o usa las etiquetas rápidas:</p>
+        <div class="quick-tags">${(currentCode.quick||[]).map(t=>`<button class="qt" data-q="${t}">${t}</button>`).join('')}</div>
+      </div>
+    `;
+    res.querySelectorAll('.qt').forEach(b=>b.addEventListener('click',function(){
+      document.getElementById('pmInput').value=this.dataset.q;
+      renderResults(this.dataset.q);
+    }));
+    // show all from current layer
+    if(layerData.length){
+      const sec = document.createElement('div');
+      sec.className='result-section';
+      sec.innerHTML=`<div class="rs-label">${currentLayer} <span class="rs-count">${layerData.length}</span></div>`;
+      layerData.forEach(a=>{
+        sec.appendChild(makeRow(a,query));
+      });
+      res.appendChild(sec);
+    }
+    return;
+  }
+
+  // search across ALL layers
+  let total=0;
+  let html='';
+  currentCode.layers.forEach(layer=>{
+    const items = (currentCode.data[layer]||[]).filter(a=>
+      a.n.toLowerCase().includes(query)||a.t.toLowerCase().includes(query)||a.d.toLowerCase().includes(query)
+    );
+    if(!items.length) return;
+    total+=items.length;
+    const sec = document.createElement('div');
+    sec.className='result-section';
+    sec.innerHTML=`<div class="rs-label">${layer} <span class="rs-count">${items.length}</span></div>`;
+    items.forEach(a=>sec.appendChild(makeRow(a,query)));
+    res.appendChild(sec);
+  });
+
+  if(!total){
+    res.innerHTML=`<div class="pm-empty"><span class="em-ico">⚖</span>No se encontraron resultados para "<strong>${q}</strong>"<br>en ${currentCode.name}.</div>`;
+  } else {
+    res.innerHTML='';
+    currentCode.layers.forEach(layer=>{
+      const items=(currentCode.data[layer]||[]).filter(a=>a.n.toLowerCase().includes(query)||a.t.toLowerCase().includes(query)||a.d.toLowerCase().includes(query));
+      if(!items.length) return;
+      const sec=document.createElement('div');sec.className='result-section';
+      sec.innerHTML=`<div class="rs-label">${layer} <span class="rs-count">${items.length}</span></div>`;
+      items.forEach(a=>sec.appendChild(makeRow(a,query)));
+      res.appendChild(sec);
+    });
+  }
+}
+
+// Añade resultados locales al final (sin limpiar los de Supabase)
+function renderResultsLocalAppend(q, res, layerData, query){
+  currentCode.layers.forEach(layer=>{
+    const items=(currentCode.data[layer]||[]).filter(a=>
+      a.n.toLowerCase().includes(query)||a.t.toLowerCase().includes(query)||a.d.toLowerCase().includes(query)
+    );
+    if(!items.length) return;
+    const sec=document.createElement('div');sec.className='result-section';
+    sec.innerHTML=`<div class="rs-label">${layer} — local <span class="rs-count">${items.length}</span></div>`;
+    items.forEach(a=>sec.appendChild(makeRow(a,query)));
+    res.appendChild(sec);
+  });
+}
+
+function highlight(text, q){
+  if(!q) return text;
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+  return text.replace(re,'<mark>$1</mark>');
+}
+
+function makeRow(a, q){
+  const row = document.createElement('div');
+  row.className='art-row';
+  row.innerHTML=`
+    <span class="ar-num">${a.n}</span>
+    <div class="ar-body">
+      <div class="ar-title">${highlight(a.t,q)}</div>
+      <div class="ar-text">${highlight(a.d.slice(0,120),q)}…</div>
+    </div>
+    <span class="ar-caret">›</span>
+  `;
+  // expand on click
+  const exp = document.createElement('div');
+  exp.className='art-expanded';
+  exp.innerHTML=`
+    <p class="ae-text">${highlight(a.d,q)}</p>
+    <div class="ae-actions">
+      <button class="ae-btn">📋 Copiar</button>
+      <button class="ae-btn">📄 Agregar al escrito</button>
+      <button class="ae-btn">🔗 Citar</button>
+    </div>
+  `;
+  row.addEventListener('click',function(e){
+    if(e.target.closest('.ae-btn')) return;
+    const wasOpen = this.classList.contains('expanded');
+    document.querySelectorAll('.art-row.expanded').forEach(r=>{
+      r.classList.remove('expanded');
+      const next = r.nextElementSibling;
+      if(next&&next.classList.contains('art-expanded')) next.remove();
+    });
+    if(!wasOpen){
+      this.classList.add('expanded');
+      this.after(exp);
+    }
+  });
+  exp.querySelector('.ae-btn').addEventListener('click',()=>{
+    navigator.clipboard&&navigator.clipboard.writeText(`${a.n} — ${a.t}: ${a.d}`);
+  });
+  return row;
+}
+
+// search button + enter
+document.getElementById('pmBtn').addEventListener('click',()=>renderResults(document.getElementById('pmInput').value));
+document.getElementById('pmInput').addEventListener('keydown',e=>{if(e.key==='Enter') renderResults(e.target.value)});
+document.getElementById('pmInput').addEventListener('input',e=>{
+  if(!e.target.value) renderResults('');
+});
+
+function closePanel(){
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('backdrop').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+/* ════════════════════════════════
+   MARQUEE
+════════════════════════════════ */
+const mqItems=['Constitución Política','Código Civil','Código Penal','NCPP','TUO CPC','Código Tributario','Reglamento del Congreso','Código de Comercio','Código del Consumidor','Código de Ejecución Penal','Niños y Adolescentes','Justicia Militar','Derecho Comparado','Jurisprudencia CAS','Corte IDH','SPIJ','120K Abogados','Perú','Colombia','Ecuador','Bolivia'];
+const mq = document.getElementById('mqTrack');
+const mqFull = [...mqItems,...mqItems].map(t=>`<span class="mq-item">${t}</span><span class="mq-dot">·</span>`).join('');
+mq.innerHTML = mqFull+mqFull;
+
+/* ════════════════════════════════
+   CURSOR
+════════════════════════════════ */
+const cur = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+let rx=0,ry=0,cx=0,cy=0;
+document.addEventListener('mousemove',e=>{cx=e.clientX;cy=e.clientY;cur.style.left=cx+'px';cur.style.top=cy+'px'});
+(function lerpRing(){rx+=(cx-rx)*.12;ry+=(cy-ry)*.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(lerpRing)})();
+document.querySelectorAll('a,button,.code-card,.fpill,.lp,.qt,.art-row,.n-cta,.btn-p,.btn-s').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cur.style.width='16px';cur.style.height='16px';ring.style.width='52px';ring.style.height='52px'});
+  el.addEventListener('mouseleave',()=>{cur.style.width='10px';cur.style.height='10px';ring.style.width='36px';ring.style.height='36px'});
+});
+
+/* ════════════════════════════════
+   LOADER
+════════════════════════════════ */
+window.addEventListener('load',()=>setTimeout(()=>document.getElementById('loader').classList.add('out'),2000));
+
+/* ════════════════════════════════
+   NAVBAR SCROLL
+════════════════════════════════ */
+window.addEventListener('scroll',()=>{
+  document.getElementById('nav').style.borderBottomColor = window.scrollY>60?'rgba(184,150,46,.15)':'rgba(255,255,255,.04)';
+});
+
+/* ════════════════════════════════
+   SCROLL REVEAL
+════════════════════════════════ */
+const obs = new IntersectionObserver(entries=>{
+  entries.forEach((e,i)=>{
+    if(e.isIntersecting){e.target.style.transitionDelay=`${i*.07}s`;e.target.classList.add('in');obs.unobserve(e.target)}
+  });
+},{threshold:.1});
+document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
+
+/* ════════════════════════════════
+   KEYBOARD
+════════════════════════════════ */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closePanel();
+  if(e.key==='/'&&document.activeElement!==document.getElementById('globalSearch')&&!document.getElementById('panel').classList.contains('open')){
+    e.preventDefault();document.getElementById('globalSearch').focus();
+  }
+});
+
+/* ════════════════════════════════
+   CTA
+════════════════════════════════ */
+document.getElementById('ctaBtn').addEventListener('click',()=>{
+  const inp=document.getElementById('ctaEmail');
+  if(inp.value&&inp.value.includes('@')){inp.value='';inp.placeholder='✓ ¡Registrado! Te contactaremos pronto.';inp.style.borderColor='var(--ink)'}
+  else{inp.style.borderColor='var(--crimson)';setTimeout(()=>{inp.style.borderColor='';inp.placeholder='Tu correo profesional…'},2200)}
+});
+</script>
+</body>
+</html>
