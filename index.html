@@ -293,7 +293,18 @@ nav{
   grid-column:1/-1;padding:4rem;text-align:center;
   font-family:var(--ff3);font-size:.75rem;letter-spacing:.1em;
   color:rgba(255,255,255,.2);display:none;
+
+/* ── FILTROS DE CÓDIGO (buscador global) ── */
 }
+.sbf{
+  font-family:var(--ff3);font-size:.52rem;letter-spacing:.08em;text-transform:uppercase;
+  padding:.28rem .7rem;border:1px solid rgba(255,255,255,.08);
+  color:rgba(255,255,255,.3);cursor:pointer;background:transparent;
+  transition:all .15s;white-space:nowrap;
+}
+.sbf:hover{border-color:rgba(184,150,46,.4);color:rgba(184,150,46,.7)}
+.sbf.on{background:rgba(184,150,46,.12);border-color:var(--gold);color:var(--gold);font-weight:600}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 
 /* ══════════════════════════════════════════
    PANEL
@@ -600,13 +611,31 @@ footer{background:var(--ink);border-top:1px solid rgba(255,255,255,.04);padding:
     <p class="s-p">Haz clic en cualquier código para abrir su buscador por capas: artículos, jurisprudencia, CAS y doctrina actualizada.</p>
   </div>
 
-  <!-- ▼ PINZA FINA: .g-search ya NO tiene position:relative
-       El panel #sb-results-panel vive AQUÍ ABAJO, como hermano,
-       en flujo normal → nunca más tapa filtros ni cards -->
+  <!-- ▼ BUSCADOR GLOBAL ELITE con filtro por código ── -->
   <div class="g-search rv">
     <span class="gs-icon">⚖</span>
-    <input id="globalSearch" type="text" placeholder="Buscar en 3,600+ artículos… (debido proceso, habeas corpus, prescripción…)"/>
+    <input id="globalSearch" type="text" placeholder="Buscar en 3,671+ artículos… (alimentos, habeas corpus, prescripción, despido…)"/>
     <span class="gs-hint">/ buscar</span>
+  </div>
+
+  <!-- Filtros rápidos de código — NUEVO -->
+  <div id="sb-code-filters" style="display:none;flex-wrap:wrap;gap:.4rem;padding:.5rem 0 .2rem;animation:fadeIn .2s ease">
+    <span style="font-family:monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.2);display:flex;align-items:center;padding-right:.3rem">Filtrar por ley:</span>
+    <button class="sbf on" data-cod="all">Todos los códigos</button>
+    <button class="sbf" data-cod="constitucion">📜 Constitución</button>
+    <button class="sbf" data-cod="codigo_civil">⚖️ Código Civil</button>
+    <button class="sbf" data-cod="tuo_codigo_procesal_civil">🏛️ Proc. Civil</button>
+    <button class="sbf" data-cod="codigo_penal">⚔️ Código Penal</button>
+    <button class="sbf" data-cod="cod_ninos_adolescentes">👶 Niños y Adol.</button>
+    <button class="sbf" data-cod="cod_resp_penal_adolescentes">👤 Resp. Penal Adol.</button>
+    <button class="sbf" data-cod="cod_procesal_constitucional">🔏 Proc. Const.</button>
+    <button class="sbf" data-cod="cod_procedimientos_penales">📂 Proc. Penales</button>
+    <button class="sbf" data-cod="cod_proteccion_consumidor">🛡️ Consumidor</button>
+    <button class="sbf" data-cod="cod_tributario_tuo">💰 Tributario</button>
+    <button class="sbf" data-cod="reglamento_congreso">🏟️ Rgto. Congreso</button>
+    <button class="sbf" data-cod="cod_justicia_militar">🎖️ Just. Militar</button>
+    <button class="sbf" data-cod="cod_penal_militar">🪖 Penal Militar</button>
+    <button class="sbf" data-cod="cod_comercio">🤝 Comercio</button>
   </div>
 
   <!-- Panel de resultados Supabase — en flujo, empuja contenido abajo -->
@@ -1190,15 +1219,68 @@ function getSbPanel(){
 function closeSbPanel(){
   const p = getSbPanel();
   if(p){ p.innerHTML=''; p.style.display='none'; }
+  /* ocultar barra de filtros si el input está vacío */
+  const inp=document.getElementById('globalSearch');
+  if(inp && !inp.value.trim()){
+    const fb=document.getElementById('sb-code-filters');
+    if(fb) fb.style.display='none';
+    _sbCodFiltro='all';
+    document.querySelectorAll('.sbf').forEach(function(b){
+      b.classList.toggle('on', b.dataset.cod==='all');
+    });
+  }
 }
 
 function sbEsc(s){return(s||'').replace(/'/g,"\\'").replace(/\n/g,' ').replace(/"/g,'&quot;');}
 
+/* ── LEYMAP global — compartido por búsqueda y modal ── */
+const LEYMAP={
+  constitucion:              {label:'Constitución Política',       emoji:'📜', color:'#c8a84b'},
+  codigo_civil:              {label:'Código Civil',                emoji:'⚖️',  color:'#6b9fd4'},
+  tuo_codigo_procesal_civil: {label:'C. Procesal Civil (TUO)',     emoji:'🏛️',  color:'#7ec8a4'},
+  codigo_penal:              {label:'Código Penal',                emoji:'⚔️',  color:'#e07070'},
+  cod_procedimientos_penales:{label:'C. Procedimientos Penales',   emoji:'📂',  color:'#e09070'},
+  cod_procesal_constitucional:{label:'C. Procesal Constitucional', emoji:'🔏',  color:'#a9d8c3'},
+  cod_resp_penal_adolescentes:{label:'Resp. Penal Adolescentes',   emoji:'👤',  color:'#c9a8e0'},
+  cod_ninos_adolescentes:    {label:'Niños y Adolescentes',        emoji:'👶',  color:'#f0c880'},
+  cod_proteccion_consumidor: {label:'Protección Consumidor',       emoji:'🛡️',  color:'#80c8f0'},
+  cod_tributario_tuo:        {label:'Código Tributario (TUO)',     emoji:'💰',  color:'#a8d880'},
+  reglamento_congreso:       {label:'Reglamento del Congreso',     emoji:'🏟️',  color:'#d4a8e0'},
+  cod_justicia_militar:      {label:'Justicia Militar Policial',   emoji:'🎖️',  color:'#c8b090'},
+  cod_penal_militar:         {label:'Penal Militar Policial',      emoji:'🪖',  color:'#b8c890'},
+  cod_comercio:              {label:'Código de Comercio',          emoji:'🤝',  color:'#80d4c8'},
+};
+const PAISMAP={PE:'🇵🇪 Perú',CO:'🇨🇴 Colombia',EC:'🇪🇨 Ecuador',BO:'🇧🇴 Bolivia'};
+
+/* código actualmente filtrado en el buscador global */
+let _sbCodFiltro = 'all';
+
+/* ── Inicializar botones de filtro por código ── */
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.sbf').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.sbf').forEach(function(b){b.classList.remove('on');});
+      this.classList.add('on');
+      _sbCodFiltro=this.dataset.cod;
+      const q=document.getElementById('globalSearch').value.trim();
+      if(q.length>=2) supabaseSearch(q);
+    });
+  });
+});
+
 async function supabaseSearch(q){
   const sb = getSB();
   const panel = getSbPanel();
+  const filterBar = document.getElementById('sb-code-filters');
+
+  /* mostrar filtros cuando el usuario ya empieza a buscar */
+  if(filterBar) filterBar.style.display='flex';
+
   panel.style.display='block';
-  panel.innerHTML='<div style="padding:1rem 1.5rem;font-family:monospace;font-size:.65rem;letter-spacing:.1em;color:rgba(184,150,46,.5);text-transform:uppercase">Consultando base legislativa…</div>';
+  panel.innerHTML='<div style="padding:1rem 1.5rem;font-family:monospace;font-size:.62rem;letter-spacing:.1em;color:rgba(184,150,46,.5);text-transform:uppercase;display:flex;align-items:center;gap:.6rem">'
+    +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:rgba(184,150,46,.5);animation:ldpulse 1s ease-in-out infinite"></span>'
+    +'Consultando base legislativa'+((_sbCodFiltro!=='all')?' — <span style="color:rgba(184,150,46,.8)">'+(_sbCodFiltro)+'</span>':'')+'…'
+    +'</div>';
 
   if(!sb){
     panel.innerHTML='<div style="padding:1rem 1.5rem;font-family:monospace;font-size:.65rem;color:rgba(255,150,50,.6)">SDK cargando, intente de nuevo…</div>';
@@ -1206,39 +1288,31 @@ async function supabaseSearch(q){
   }
 
   try{
-    const {data,error} = await sb
+    /* ── Construir query con filtro opcional por código ── */
+    let query = sb
       .from('leyes_hj_global')
       .select('articulo_nro,sumilla,contenido,codigo,pais,metadata')
-      .textSearch('busqueda_vector', q, {config:'spanish',type:'websearch'})
-      .limit(15);
+      .textSearch('busqueda_vector', q, {config:'spanish',type:'websearch'});
+
+    if(_sbCodFiltro && _sbCodFiltro!=='all'){
+      query = query.eq('codigo', _sbCodFiltro);
+    }
+
+    const {data,error} = await query.limit(18);
 
     if(error||!data||!data.length){
-      panel.innerHTML='<div style="padding:1.5rem;text-align:center;font-family:monospace;font-size:.65rem;letter-spacing:.1em;color:rgba(255,255,255,.2)">Sin resultados en base legislativa para: <strong style=\'color:rgba(184,150,46,.7)\'>' + q + '</strong></div>';
+      const filtroLabel=(_sbCodFiltro!=='all' && LEYMAP[_sbCodFiltro]) ? LEYMAP[_sbCodFiltro].label : 'la base legislativa';
+      panel.innerHTML='<div style="padding:1.5rem;text-align:center;font-family:monospace;font-size:.65rem;letter-spacing:.1em;color:rgba(255,255,255,.2)">'
+        +'Sin resultados para: <strong style=\'color:rgba(184,150,46,.7)\'>"'+q+'"</strong>'
+        +'<br><span style="font-size:.55rem;color:rgba(255,255,255,.15);margin-top:.4rem;display:block">en '+filtroLabel
+        +(_sbCodFiltro!=='all'?' — <a href="#" onclick="document.querySelector(\'.sbf[data-cod=all]\').click();return false" style="color:rgba(184,150,46,.5);text-decoration:underline">buscar en todos los códigos</a>':'')+'</span>'
+        +'</div>';
       return;
     }
 
-    /* ── LEYMAP COMPLETO — 14 códigos reales de Supabase ── */
-    const LEYMAP={
-      constitucion:             {label:'Constitución Política',      emoji:'📜', color:'#c8a84b'},
-      codigo_civil:             {label:'Código Civil',               emoji:'⚖️',  color:'#6b9fd4'},
-      tuo_codigo_procesal_civil:{label:'C. Procesal Civil (TUO)',    emoji:'🏛️',  color:'#7ec8a4'},
-      codigo_penal:             {label:'Código Penal',               emoji:'⚔️',  color:'#e07070'},
-      cod_procedimientos_penales:{label:'C. Procedimientos Penales', emoji:'📂',  color:'#e09070'},
-      cod_procesal_constitucional:{label:'C. Procesal Constitucional',emoji:'🔏', color:'#a9d8c3'},
-      cod_resp_penal_adolescentes:{label:'Resp. Penal Adolescentes', emoji:'👤',  color:'#c9a8e0'},
-      cod_ninos_adolescentes:   {label:'Niños y Adolescentes',       emoji:'👶',  color:'#f0c880'},
-      cod_proteccion_consumidor:{label:'Protección Consumidor',      emoji:'🛡️',  color:'#80c8f0'},
-      cod_tributario_tuo:       {label:'Código Tributario (TUO)',    emoji:'💰',  color:'#a8d880'},
-      reglamento_congreso:      {label:'Reglamento del Congreso',    emoji:'🏟️',  color:'#d4a8e0'},
-      cod_justicia_militar:     {label:'Justicia Militar Policial',  emoji:'🎖️',  color:'#c8b090'},
-      cod_penal_militar:        {label:'Penal Militar Policial',     emoji:'🪖',  color:'#b8c890'},
-      cod_comercio:             {label:'Código de Comercio',         emoji:'🤝',  color:'#80d4c8'},
-    };
-    const PAISMAP={PE:'🇵🇪 Perú',CO:'🇨🇴 Colombia',EC:'🇪🇨 Ecuador',BO:'🇧🇴 Bolivia'};
-
     const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
 
-    /* Agrupar por código para mostrar sección por ley */
+    /* Agrupar por código */
     const grupos={};
     data.forEach(function(row){
       const cod=row.codigo||'otro';
@@ -1247,43 +1321,46 @@ async function supabaseSearch(q){
     });
 
     const nLeyes=Object.keys(grupos).length;
-    let html=''
-      +'<div style="padding:.6rem 1.5rem 0.4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)">'
-      +'<div>'
-      +'<span style="font-family:monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(184,150,46,.9);font-weight:600">'+data.length+' artículos</span>'
-      +'<span style="font-family:monospace;font-size:.55rem;color:rgba(255,255,255,.25);margin-left:.6rem">en '+nLeyes+' código'+(nLeyes>1?'s':'')+' · búsqueda: "<em style=\'color:rgba(184,150,46,.6)\'>'+q+'</em>"</span>'
+    const filtroActivoLabel=(_sbCodFiltro!=='all'&&LEYMAP[_sbCodFiltro])?LEYMAP[_sbCodFiltro].emoji+' '+LEYMAP[_sbCodFiltro].label:'todos los códigos';
+
+    let html='<div style="padding:.55rem 1.5rem .4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)">'
+      +'<div style="display:flex;align-items:center;gap:.5rem">'
+      +'<span style="font-family:monospace;font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(184,150,46,.9);font-weight:700">'+data.length+' artículos</span>'
+      +'<span style="font-family:monospace;font-size:.52rem;color:rgba(255,255,255,.22)">en '+filtroActivoLabel+'</span>'
       +'</div>'
-      +'<span style="font-family:monospace;font-size:.5rem;color:rgba(255,255,255,.15);letter-spacing:.06em">SPIJ · LeyesHJ</span>'
+      +'<span style="font-family:monospace;font-size:.48rem;color:rgba(255,255,255,.15)">SPIJ · LeyesHJ</span>'
       +'</div>';
 
     Object.keys(grupos).forEach(function(cod){
       const rows=grupos[cod];
       const ley=LEYMAP[cod]||{label:cod.replace(/_/g,' ').toUpperCase(),emoji:'📄',color:'#b8962e'};
-      /* cabecera de sección por código */
-      html+='<div style="padding:.45rem 1.5rem;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:.5rem">'
-        +'<span style="font-size:.75rem">'+ley.emoji+'</span>'
-        +'<span style="font-family:monospace;font-size:.58rem;letter-spacing:.08em;color:'+ley.color+';font-weight:600">'+ley.label+'</span>'
-        +'<span style="font-family:monospace;font-size:.5rem;background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);padding:.08rem .35rem;margin-left:.25rem">'+rows.length+' resultado'+(rows.length>1?'s':'')+'</span>'
+
+      /* cabecera de sección por ley */
+      html+='<div style="padding:.4rem 1.5rem;background:rgba(255,255,255,.025);border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:.45rem">'
+        +'<span style="font-size:.7rem">'+ley.emoji+'</span>'
+        +'<span style="font-family:monospace;font-size:.56rem;letter-spacing:.07em;color:'+ley.color+';font-weight:700">'+ley.label+'</span>'
+        +'<span style="font-family:monospace;font-size:.48rem;background:rgba(255,255,255,.04);color:rgba(255,255,255,.28);padding:.06rem .3rem;margin-left:.2rem">'+rows.length+' resultado'+(rows.length>1?'s':'')+'</span>'
         +'</div>';
 
       rows.forEach(function(row){
         const art=row.articulo_nro||'';
         const sum=row.sumilla||'';
         const pais=PAISMAP[row.pais||'PE']||'🌎';
-        const snippet=(row.contenido||'').slice(0,160).replace(re,'<mark style=\'background:rgba(184,150,46,.18);color:#e8cc80;padding:0 2px;border-radius:2px\'>$1</mark>');
+        const snippet=(row.contenido||'').slice(0,170).replace(re,'<mark style=\'background:rgba(184,150,46,.18);color:#e8cc80;padding:0 2px;border-radius:2px\'>$1</mark>');
         const fullCont=sbEsc(row.contenido||'');
         const artE=sbEsc(art); const sumE=sbEsc(sum);
-        const leyE=sbEsc(ley.label); const emojiE=ley.emoji;
-        html+='<div style="padding:.8rem 1.5rem 0.8rem 2.2rem;border-bottom:1px solid rgba(255,255,255,.03);cursor:pointer;transition:background .12s,padding-left .12s" '
-          +'onmouseover="this.style.background=\'rgba(184,150,46,.04)\';this.style.paddingLeft=\'2.6rem\'" '
-          +'onmouseout="this.style.background=\'\';this.style.paddingLeft=\'2.2rem\'" '
+        const leyE=sbEsc(ley.label); const emojiE=sbEsc(ley.emoji);
+
+        html+='<div style="padding:.75rem 1.5rem .75rem 2.1rem;border-bottom:1px solid rgba(255,255,255,.03);cursor:pointer;transition:background .12s,padding-left .12s" '
+          +'onmouseover="this.style.background=\'rgba(184,150,46,.04)\';this.style.paddingLeft=\'2.5rem\'" '
+          +'onmouseout="this.style.background=\'\';this.style.paddingLeft=\'2.1rem\'" '
           +'onclick="sbModal(\''+artE+'\',\''+sumE+'\',\''+fullCont+'\',\''+leyE+'\',\''+emojiE+'\',\''+pais+'\')">'
-          +'<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.22rem">'
-          +'<span style="font-family:monospace;font-size:.62rem;letter-spacing:.06em;color:'+ley.color+';font-weight:600">'+art+'</span>'
-          +'<span style="font-family:monospace;font-size:.48rem;color:rgba(255,255,255,.2)">'+pais+'</span>'
+          +'<div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.2rem">'
+          +'<span style="font-family:monospace;font-size:.6rem;letter-spacing:.05em;color:'+ley.color+';font-weight:700">'+art+'</span>'
+          +'<span style="font-family:monospace;font-size:.46rem;color:rgba(255,255,255,.18)">'+pais+'</span>'
           +'</div>'
-          +'<div style="font-family:Georgia,serif;font-size:.9rem;font-weight:700;color:#faf8f2;margin-bottom:.25rem;line-height:1.3">'+sum+'</div>'
-          +'<div style="font-size:.74rem;color:rgba(255,255,255,.35);line-height:1.65">'+snippet+'…</div>'
+          +'<div style="font-family:Georgia,serif;font-size:.88rem;font-weight:700;color:#faf8f2;margin-bottom:.22rem;line-height:1.3">'+sum+'</div>'
+          +'<div style="font-size:.73rem;color:rgba(255,255,255,.33);line-height:1.65">'+snippet+'…</div>'
           +'</div>';
       });
     });
