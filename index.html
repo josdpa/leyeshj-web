@@ -174,6 +174,9 @@ nav{
   border:1px solid var(--goldborder);
   margin-bottom:2rem;max-width:600px;
   transition:border-color .25s,box-shadow .25s;
+  /* ▲ PINZA FINA: quitamos position:relative de aquí,
+     ahora está en .g-search-wrap para que el panel
+     quede en flujo normal y NO tape filtros ni cards */
 }
 .g-search:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,150,46,.08)}
 .gs-icon{padding:0 1.2rem;color:rgba(184,150,46,.5);font-size:.9rem;display:flex;align-items:center}
@@ -183,6 +186,27 @@ nav{
 }
 #globalSearch::placeholder{color:rgba(255,255,255,.2)}
 .gs-hint{font-family:var(--ff3);font-size:.58rem;letter-spacing:.1em;color:rgba(255,255,255,.15);padding:0 1rem;display:flex;align-items:center;white-space:nowrap}
+
+/* ── SEARCH RESULTS PANEL — PINZA FINA FIX ──
+   Antes: position:absolute dentro de .g-search → tapaba todo lo de abajo
+   Ahora: position:static, flujo normal, empuja filtros y cards hacia abajo
+   Solo se oculta con display:none cuando no hay resultados
+────────────────────────────────────────────── */
+#sb-results-panel{
+  max-width:600px;
+  background:#131310;
+  border:1px solid rgba(184,150,46,.3);
+  border-top:none;
+  max-height:380px;
+  overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.7);
+  display:none; /* oculto por defecto, JS lo muestra */
+  margin-bottom:1.5rem; /* espacio visual antes de los filtros */
+  position:relative; /* en flujo, sin flotar sobre nada */
+  z-index:10; /* por encima del grid pero NO sobre filtros */
+}
+#sb-results-panel::-webkit-scrollbar{width:3px}
+#sb-results-panel::-webkit-scrollbar-thumb{background:rgba(184,150,46,.3)}
 
 /* ── FILTER PILLS ── */
 .filters{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:2.5rem}
@@ -210,13 +234,11 @@ nav{
   transition:background .3s var(--ease);
   border-bottom:2px solid transparent;
 }
-/* shimmer on hover */
 .code-card::before{
   content:'';position:absolute;inset:0;
   background:linear-gradient(135deg,transparent 40%,rgba(184,150,46,.04) 100%);
   opacity:0;transition:opacity .3s;
 }
-/* top line reveal */
 .code-card::after{
   content:'';position:absolute;top:0;left:0;right:0;height:2px;
   background:linear-gradient(90deg,var(--gold),var(--gold2),transparent);
@@ -228,7 +250,6 @@ nav{
 .code-card:hover::after{transform:scaleX(1)}
 .code-card.hide{display:none}
 
-/* card internals */
 .cc-num{font-family:var(--ff3);font-size:.58rem;letter-spacing:.12em;color:rgba(184,150,46,.4);margin-bottom:.5rem;display:block;transition:color .2s}
 .code-card:hover .cc-num{color:var(--gold)}
 .cc-sym{
@@ -259,7 +280,6 @@ nav{
   transition:transform .2s,color .2s;
 }
 .code-card:hover .cc-arrow{color:var(--gold);transform:translate(3px,-3px)}
-/* glow blob */
 .cc-glow{
   position:absolute;bottom:-40px;right:-40px;
   width:120px;height:120px;border-radius:50%;
@@ -269,7 +289,6 @@ nav{
 }
 .code-card:hover .cc-glow{opacity:1;transform:scale(1.4)}
 
-/* empty state */
 .no-results{
   grid-column:1/-1;padding:4rem;text-align:center;
   font-family:var(--ff3);font-size:.75rem;letter-spacing:.1em;
@@ -277,7 +296,7 @@ nav{
 }
 
 /* ══════════════════════════════════════════
-   PANEL — full screen search experience
+   PANEL
 ══════════════════════════════════════════ */
 .panel-overlay{
   position:fixed;inset:0;z-index:500;
@@ -287,7 +306,6 @@ nav{
 }
 .panel-overlay.open{opacity:1;visibility:visible}
 
-/* left: code info sidebar */
 .panel-sidebar{
   width:340px;flex-shrink:0;
   background:var(--ink);
@@ -324,7 +342,6 @@ nav{
 .ps-desc{padding:1.5rem 2.2rem;border-bottom:1px solid rgba(255,255,255,.04)}
 .ps-desc p{font-size:.82rem;color:rgba(255,255,255,.4);line-height:1.75}
 
-/* layer tabs */
 .ps-layers{display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.05)}
 .layer-tab{
   flex:1;font-family:var(--ff3);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
@@ -342,7 +359,6 @@ nav{
 .ps-btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4)}
 .ps-btn.ghost:hover{border-color:var(--gold);color:var(--gold);transform:none}
 
-/* right: search panel */
 .panel-main{
   flex:1;background:var(--ink2);display:flex;flex-direction:column;
   transform:translateX(30px);
@@ -371,7 +387,6 @@ nav{
 }
 .pm-search-btn:hover{background:var(--gold2)}
 
-/* layer pills */
 .pm-layers{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
 .lp{
   font-family:var(--ff3);font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;
@@ -382,7 +397,6 @@ nav{
 .lp.on{background:var(--goldglow);border-color:var(--gold);color:var(--gold)}
 .lp:hover{border-color:rgba(184,150,46,.4);color:rgba(184,150,46,.7)}
 
-/* results area */
 .pm-results{flex:1;overflow-y:auto;padding:1.5rem 2.5rem}
 .pm-results::-webkit-scrollbar{width:3px}
 .pm-results::-webkit-scrollbar-thumb{background:rgba(184,150,46,.3)}
@@ -413,7 +427,6 @@ nav{
 .ar-caret{color:rgba(184,150,46,.3);font-size:.7rem;margin-top:.1rem;transition:transform .2s,color .2s;flex-shrink:0}
 .art-row:hover .ar-caret{color:var(--gold);transform:translateX(4px)}
 
-/* article expanded */
 .art-row.expanded .ar-caret{transform:rotate(90deg);color:var(--gold)}
 .art-expanded{
   display:none;padding:.8rem 1rem .8rem calc(72px + 1rem);
@@ -430,7 +443,6 @@ nav{
 }
 .ae-btn:hover{border-color:var(--gold);color:var(--gold)}
 
-/* empty / loading */
 .pm-empty{
   padding:5rem 2rem;text-align:center;
   font-family:var(--ff3);font-size:.72rem;letter-spacing:.1em;color:rgba(255,255,255,.15);
@@ -448,7 +460,6 @@ nav{
 }
 .qt:hover{background:var(--goldglow);color:var(--gold);border-color:var(--gold)}
 
-/* backdrop blur */
 .panel-backdrop{
   position:fixed;inset:0;z-index:499;
   background:rgba(10,10,8,.7);backdrop-filter:blur(4px);
@@ -587,11 +598,17 @@ footer{background:var(--ink);border-top:1px solid rgba(255,255,255,.04);padding:
     <p class="s-p">Haz clic en cualquier código para abrir su buscador por capas: artículos, jurisprudencia, CAS y doctrina actualizada.</p>
   </div>
 
+  <!-- ▼ PINZA FINA: .g-search ya NO tiene position:relative
+       El panel #sb-results-panel vive AQUÍ ABAJO, como hermano,
+       en flujo normal → nunca más tapa filtros ni cards -->
   <div class="g-search rv">
     <span class="gs-icon">⚖</span>
     <input id="globalSearch" type="text" placeholder="Filtrar por código o materia… (Ej: penal, tributario, familia)"/>
     <span class="gs-hint">/ buscar</span>
   </div>
+
+  <!-- Panel de resultados Supabase — en flujo, empuja contenido abajo -->
+  <div id="sb-results-panel"></div>
 
   <div class="filters rv" id="filters">
     <button class="fpill on" data-f="all">Todos</button>
@@ -1129,7 +1146,6 @@ function renderGrid(data){
     `;
     el.addEventListener('click',()=>openPanel(c));
     grid.appendChild(el);
-    // stagger entrance
     requestAnimationFrame(()=>{
       setTimeout(()=>el.style.opacity='1',i*40);
     });
@@ -1148,12 +1164,11 @@ document.getElementById('filters').addEventListener('click',e=>{
 document.getElementById('globalSearch').addEventListener('input', applyFilters);
 
 /* ══════════════════════════════════════════
-   SUPABASE — Motor de búsqueda PostgreSQL
+   SUPABASE
 ══════════════════════════════════════════ */
 const SUPA_URL = 'https://glneakucswdawdodgffn.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsbmVha3Vjc3dkYXdkb2RnZmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2Njg0NjAsImV4cCI6MjA5MDI0NDQ2MH0._cjZ-wXDM3G-njZMmhgwZrf5whH18tH553f0IQlbJr4';
 
-// Init Supabase only when SDK is ready
 function getSB(){
   if(window._sbClient) return window._sbClient;
   if(typeof supabase === 'undefined') return null;
@@ -1162,22 +1177,17 @@ function getSB(){
 }
 
 let _sbTimer = null;
-let _sbPanel = null;
 
+/* ── PINZA FINA: getSbPanel ahora referencia el elemento
+   fijo en el HTML como hermano de .g-search,
+   NO lo crea dinámicamente dentro del input wrapper ── */
 function getSbPanel(){
-  if(!_sbPanel){
-    _sbPanel = document.createElement('div');
-    _sbPanel.id='sb-results-panel';
-    _sbPanel.style.cssText='position:absolute;left:0;right:0;top:100%;z-index:9000;background:#131310;border:1px solid rgba(184,150,46,.3);border-top:none;max-height:380px;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.7);';
-    const wrap=document.querySelector('.g-search');
-    if(wrap){wrap.style.position='relative';wrap.appendChild(_sbPanel);}
-  }
-  return _sbPanel;
+  return document.getElementById('sb-results-panel');
 }
 
 function closeSbPanel(){
-  const p=document.getElementById('sb-results-panel');
-  if(p){p.innerHTML='';p.style.display='none';}
+  const p = getSbPanel();
+  if(p){ p.innerHTML=''; p.style.display='none'; }
 }
 
 function sbEsc(s){return(s||'').replace(/'/g,"\\'").replace(/\n/g,' ').replace(/"/g,'&quot;');}
@@ -1246,9 +1256,14 @@ function sbModal(art,sum,cont){
   closeSbPanel();
 }
 
+/* ── PINZA FINA: click-fuera cierra el panel
+   ahora detecta el wrapper .explorer en lugar de .g-search ── */
 document.addEventListener('click',function(e){
-  const wrap=document.querySelector('.g-search');
-  if(wrap&&!wrap.contains(e.target)) closeSbPanel();
+  const panel = getSbPanel();
+  const searchWrap = document.querySelector('.g-search');
+  if(panel && searchWrap && !searchWrap.contains(e.target) && !panel.contains(e.target)){
+    closeSbPanel();
+  }
 });
 
 function applyFilters(){
@@ -1277,7 +1292,6 @@ let currentLayer = null;
 function openPanel(code){
   currentCode = code;
   currentLayer = code.layers[0];
-  // sidebar
   document.getElementById('psNum').textContent = `§ ${code.num}`;
   document.getElementById('psTitle').textContent = code.name;
   document.getElementById('psTag').textContent = `${code.tag}`;
@@ -1288,7 +1302,6 @@ function openPanel(code){
     <div class="pm-item"><div class="pm-l">Categoría</div><div class="pm-v">${code.tag}</div></div>
   `;
   document.getElementById('psDesc').textContent = code.desc;
-  // layer tabs in sidebar
   document.getElementById('psLayers').innerHTML = code.layers.map((l,i)=>`
     <button class="layer-tab ${i===0?'on':''}" data-l="${l}">${l}</button>
   `).join('');
@@ -1300,7 +1313,6 @@ function openPanel(code){
     renderResults('');
   }));
 
-  // panel main
   document.getElementById('pmInput').value='';
   document.getElementById('pmLayers').innerHTML = code.layers.map((l,i)=>`
     <button class="lp ${i===0?'on':''}" data-l="${l}">${l}</button>
@@ -1328,7 +1340,6 @@ function renderResults(q){
   const query = q.trim().toLowerCase();
 
   if(!query){
-    // show intro + quick tags
     res.innerHTML = `
       <div class="pm-intro">
         <div class="pi-title">${currentCode.name}</div>
@@ -1340,7 +1351,6 @@ function renderResults(q){
       document.getElementById('pmInput').value=this.dataset.q;
       renderResults(this.dataset.q);
     }));
-    // show all from current layer
     if(layerData.length){
       const sec = document.createElement('div');
       sec.className='result-section';
@@ -1353,17 +1363,13 @@ function renderResults(q){
     return;
   }
 
-  // search across ALL layers
   let total=0;
-  let html='';
+  res.innerHTML='';
   currentCode.layers.forEach(layer=>{
-    const items = (currentCode.data[layer]||[]).filter(a=>
-      a.n.toLowerCase().includes(query)||a.t.toLowerCase().includes(query)||a.d.toLowerCase().includes(query)
-    );
+    const items=(currentCode.data[layer]||[]).filter(a=>a.n.toLowerCase().includes(query)||a.t.toLowerCase().includes(query)||a.d.toLowerCase().includes(query));
     if(!items.length) return;
     total+=items.length;
-    const sec = document.createElement('div');
-    sec.className='result-section';
+    const sec=document.createElement('div');sec.className='result-section';
     sec.innerHTML=`<div class="rs-label">${layer} <span class="rs-count">${items.length}</span></div>`;
     items.forEach(a=>sec.appendChild(makeRow(a,query)));
     res.appendChild(sec);
@@ -1371,16 +1377,6 @@ function renderResults(q){
 
   if(!total){
     res.innerHTML=`<div class="pm-empty"><span class="em-ico">⚖</span>No se encontraron resultados para "<strong>${q}</strong>"<br>en ${currentCode.name}.</div>`;
-  } else {
-    res.innerHTML='';
-    currentCode.layers.forEach(layer=>{
-      const items=(currentCode.data[layer]||[]).filter(a=>a.n.toLowerCase().includes(query)||a.t.toLowerCase().includes(query)||a.d.toLowerCase().includes(query));
-      if(!items.length) return;
-      const sec=document.createElement('div');sec.className='result-section';
-      sec.innerHTML=`<div class="rs-label">${layer} <span class="rs-count">${items.length}</span></div>`;
-      items.forEach(a=>sec.appendChild(makeRow(a,query)));
-      res.appendChild(sec);
-    });
   }
 }
 
@@ -1401,7 +1397,6 @@ function makeRow(a, q){
     </div>
     <span class="ar-caret">›</span>
   `;
-  // expand on click
   const exp = document.createElement('div');
   exp.className='art-expanded';
   exp.innerHTML=`
@@ -1431,7 +1426,6 @@ function makeRow(a, q){
   return row;
 }
 
-// search button + enter
 document.getElementById('pmBtn').addEventListener('click',()=>renderResults(document.getElementById('pmInput').value));
 document.getElementById('pmInput').addEventListener('keydown',e=>{if(e.key==='Enter') renderResults(e.target.value)});
 document.getElementById('pmInput').addEventListener('input',e=>{
