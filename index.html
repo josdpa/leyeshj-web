@@ -577,6 +577,8 @@ footer{background:var(--ink);border-top:1px solid rgba(255,255,255,.04);padding:
     </div>
     <div class="hero-counters">
       <div class="hc"><span class="n">18</span><span class="l">Códigos legales</span></div>
+      <div class="hc"><span class="n">3,671+</span><span class="l">Artículos cargados</span></div>
+      <div class="hc"><span class="n">14</span><span class="l">Códigos activos</span></div>
       <div class="hc"><span class="n">120K+</span><span class="l">Abogados objetivo</span></div>
       <div class="hc"><span class="n">4</span><span class="l">Países cubiertos</span></div>
       <div class="hc"><span class="n">24/7</span><span class="l">Disponibilidad</span></div>
@@ -603,7 +605,7 @@ footer{background:var(--ink);border-top:1px solid rgba(255,255,255,.04);padding:
        en flujo normal → nunca más tapa filtros ni cards -->
   <div class="g-search rv">
     <span class="gs-icon">⚖</span>
-    <input id="globalSearch" type="text" placeholder="Filtrar por código o materia… (Ej: penal, tributario, familia)"/>
+    <input id="globalSearch" type="text" placeholder="Buscar en 3,600+ artículos… (debido proceso, habeas corpus, prescripción…)"/>
     <span class="gs-hint">/ buscar</span>
   </div>
 
@@ -1206,28 +1208,84 @@ async function supabaseSearch(q){
   try{
     const {data,error} = await sb
       .from('leyes_hj_global')
-      .select('articulo_nro,sumilla,contenido,metadata')
+      .select('articulo_nro,sumilla,contenido,codigo,pais,metadata')
       .textSearch('busqueda_vector', q, {config:'spanish',type:'websearch'})
-      .limit(10);
+      .limit(15);
 
     if(error||!data||!data.length){
       panel.innerHTML='<div style="padding:1.5rem;text-align:center;font-family:monospace;font-size:.65rem;letter-spacing:.1em;color:rgba(255,255,255,.2)">Sin resultados en base legislativa para: <strong style=\'color:rgba(184,150,46,.7)\'>' + q + '</strong></div>';
       return;
     }
 
+    /* ── LEYMAP COMPLETO — 14 códigos reales de Supabase ── */
+    const LEYMAP={
+      constitucion:             {label:'Constitución Política',      emoji:'📜', color:'#c8a84b'},
+      codigo_civil:             {label:'Código Civil',               emoji:'⚖️',  color:'#6b9fd4'},
+      tuo_codigo_procesal_civil:{label:'C. Procesal Civil (TUO)',    emoji:'🏛️',  color:'#7ec8a4'},
+      codigo_penal:             {label:'Código Penal',               emoji:'⚔️',  color:'#e07070'},
+      cod_procedimientos_penales:{label:'C. Procedimientos Penales', emoji:'📂',  color:'#e09070'},
+      cod_procesal_constitucional:{label:'C. Procesal Constitucional',emoji:'🔏', color:'#a9d8c3'},
+      cod_resp_penal_adolescentes:{label:'Resp. Penal Adolescentes', emoji:'👤',  color:'#c9a8e0'},
+      cod_ninos_adolescentes:   {label:'Niños y Adolescentes',       emoji:'👶',  color:'#f0c880'},
+      cod_proteccion_consumidor:{label:'Protección Consumidor',      emoji:'🛡️',  color:'#80c8f0'},
+      cod_tributario_tuo:       {label:'Código Tributario (TUO)',    emoji:'💰',  color:'#a8d880'},
+      reglamento_congreso:      {label:'Reglamento del Congreso',    emoji:'🏟️',  color:'#d4a8e0'},
+      cod_justicia_militar:     {label:'Justicia Militar Policial',  emoji:'🎖️',  color:'#c8b090'},
+      cod_penal_militar:        {label:'Penal Militar Policial',     emoji:'🪖',  color:'#b8c890'},
+      cod_comercio:             {label:'Código de Comercio',         emoji:'🤝',  color:'#80d4c8'},
+    };
+    const PAISMAP={PE:'🇵🇪 Perú',CO:'🇨🇴 Colombia',EC:'🇪🇨 Ecuador',BO:'🇧🇴 Bolivia'};
+
     const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-    let html='<div style="padding:.5rem 1.5rem;font-family:monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(184,150,46,.4);border-bottom:1px solid rgba(255,255,255,.05)">'+data.length+' resultado(s) — Base Legislativa Supabase</div>';
+
+    /* Agrupar por código para mostrar sección por ley */
+    const grupos={};
     data.forEach(function(row){
-      const art=row.articulo_nro||'';
-      const sum=row.sumilla||'';
-      const cont=(row.contenido||'').slice(0,140).replace(re,'<mark style=\'background:rgba(184,150,46,.2);color:#d4af58;padding:0 2px\'>$1</mark>');
-      const fullCont=sbEsc(row.contenido||'');
-      const artE=sbEsc(art); const sumE=sbEsc(sum);
-      html+='<div style="padding:.85rem 1.5rem;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'rgba(184,150,46,.05)\'" onmouseout="this.style.background=\'\'" onclick="sbModal(\''+artE+'\',\''+sumE+'\',\''+fullCont+'\')">'
-        +'<div style="font-family:monospace;font-size:.6rem;letter-spacing:.08em;color:#b8962e;margin-bottom:.2rem">'+art+'</div>'
-        +'<div style="font-family:Georgia,serif;font-size:.88rem;font-weight:700;color:#faf8f2;margin-bottom:.2rem;line-height:1.3">'+sum+'</div>'
-        +'<div style="font-size:.76rem;color:rgba(255,255,255,.4);line-height:1.6">'+cont+'…</div>'
+      const cod=row.codigo||'otro';
+      if(!grupos[cod]) grupos[cod]=[];
+      grupos[cod].push(row);
+    });
+
+    const nLeyes=Object.keys(grupos).length;
+    let html=''
+      +'<div style="padding:.6rem 1.5rem 0.4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)">'
+      +'<div>'
+      +'<span style="font-family:monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(184,150,46,.9);font-weight:600">'+data.length+' artículos</span>'
+      +'<span style="font-family:monospace;font-size:.55rem;color:rgba(255,255,255,.25);margin-left:.6rem">en '+nLeyes+' código'+(nLeyes>1?'s':'')+' · búsqueda: "<em style=\'color:rgba(184,150,46,.6)\'>'+q+'</em>"</span>'
+      +'</div>'
+      +'<span style="font-family:monospace;font-size:.5rem;color:rgba(255,255,255,.15);letter-spacing:.06em">SPIJ · LeyesHJ</span>'
+      +'</div>';
+
+    Object.keys(grupos).forEach(function(cod){
+      const rows=grupos[cod];
+      const ley=LEYMAP[cod]||{label:cod.replace(/_/g,' ').toUpperCase(),emoji:'📄',color:'#b8962e'};
+      /* cabecera de sección por código */
+      html+='<div style="padding:.45rem 1.5rem;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:.5rem">'
+        +'<span style="font-size:.75rem">'+ley.emoji+'</span>'
+        +'<span style="font-family:monospace;font-size:.58rem;letter-spacing:.08em;color:'+ley.color+';font-weight:600">'+ley.label+'</span>'
+        +'<span style="font-family:monospace;font-size:.5rem;background:rgba(255,255,255,.05);color:rgba(255,255,255,.3);padding:.08rem .35rem;margin-left:.25rem">'+rows.length+' resultado'+(rows.length>1?'s':'')+'</span>'
         +'</div>';
+
+      rows.forEach(function(row){
+        const art=row.articulo_nro||'';
+        const sum=row.sumilla||'';
+        const pais=PAISMAP[row.pais||'PE']||'🌎';
+        const snippet=(row.contenido||'').slice(0,160).replace(re,'<mark style=\'background:rgba(184,150,46,.18);color:#e8cc80;padding:0 2px;border-radius:2px\'>$1</mark>');
+        const fullCont=sbEsc(row.contenido||'');
+        const artE=sbEsc(art); const sumE=sbEsc(sum);
+        const leyE=sbEsc(ley.label); const emojiE=ley.emoji;
+        html+='<div style="padding:.8rem 1.5rem 0.8rem 2.2rem;border-bottom:1px solid rgba(255,255,255,.03);cursor:pointer;transition:background .12s,padding-left .12s" '
+          +'onmouseover="this.style.background=\'rgba(184,150,46,.04)\';this.style.paddingLeft=\'2.6rem\'" '
+          +'onmouseout="this.style.background=\'\';this.style.paddingLeft=\'2.2rem\'" '
+          +'onclick="sbModal(\''+artE+'\',\''+sumE+'\',\''+fullCont+'\',\''+leyE+'\',\''+emojiE+'\',\''+pais+'\')">'
+          +'<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.22rem">'
+          +'<span style="font-family:monospace;font-size:.62rem;letter-spacing:.06em;color:'+ley.color+';font-weight:600">'+art+'</span>'
+          +'<span style="font-family:monospace;font-size:.48rem;color:rgba(255,255,255,.2)">'+pais+'</span>'
+          +'</div>'
+          +'<div style="font-family:Georgia,serif;font-size:.9rem;font-weight:700;color:#faf8f2;margin-bottom:.25rem;line-height:1.3">'+sum+'</div>'
+          +'<div style="font-size:.74rem;color:rgba(255,255,255,.35);line-height:1.65">'+snippet+'…</div>'
+          +'</div>';
+      });
     });
     panel.innerHTML=html;
   }catch(e){
@@ -1235,25 +1293,76 @@ async function supabaseSearch(q){
   }
 }
 
-function sbModal(art,sum,cont){
+function sbModal(art,sum,cont,ley,emoji,pais){
+  ley=ley||'Base Legislativa'; emoji=emoji||'📄'; pais=pais||'🇵🇪 Perú';
   let m=document.getElementById('sb-modal');
   if(!m){
     m=document.createElement('div');
     m.id='sb-modal';
-    m.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(10,10,8,.93);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:2rem';
+    m.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(10,10,8,.95);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:2rem';
+    m.addEventListener('click',function(e){if(e.target===m)m.style.display='none';});
     document.body.appendChild(m);
   }
-  m.innerHTML='<div style="background:#1c1c18;border:1px solid rgba(184,150,46,.25);max-width:680px;width:100%;max-height:80vh;overflow-y:auto;padding:2.5rem;position:relative">'
-    +'<button onclick="document.getElementById(\'sb-modal\').style.display=\'none\'" style="position:absolute;top:1rem;right:1rem;background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);width:32px;height:32px;cursor:pointer;font-size:.85rem">✕</button>'
-    +'<div style="font-family:monospace;font-size:.6rem;letter-spacing:.1em;color:#b8962e;margin-bottom:.5rem">'+art+'</div>'
-    +'<div style="font-family:Georgia,serif;font-size:1.3rem;font-weight:700;color:#faf8f2;margin-bottom:1.2rem;line-height:1.3">'+sum+'</div>'
-    +'<div style="font-size:.88rem;color:rgba(255,255,255,.6);line-height:1.9;white-space:pre-wrap">'+cont+'</div>'
-    +'<div style="display:flex;gap:.5rem;margin-top:1.5rem">'
-    +'<button onclick="navigator.clipboard&&navigator.clipboard.writeText(\'' + art + ' — ' + sum + ': ' + cont + '\')" style="font-family:monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.35);padding:.4rem .9rem;cursor:pointer">📋 Copiar</button>'
-    +'<button onclick="document.getElementById(\'sb-modal\').style.display=\'none\'" style="font-family:monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;background:#b8962e;color:#0a0a08;border:none;padding:.4rem 1.2rem;cursor:pointer">Cerrar</button>'
-    +'</div></div>';
+  const añoActual=new Date().getFullYear();
+  const citaFormal=art+'. '+sum+'. '+ley+'. Perú, '+añoActual+'.';
+  const citaAPA=ley+'. ('+añoActual+'). '+art+': '+sum+'.';
+  m.innerHTML='<div style="background:#131310;border:1px solid rgba(184,150,46,.3);max-width:720px;width:100%;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 32px 80px rgba(0,0,0,.8)">'
+
+    /* header */
+    +'<div style="padding:1.8rem 2.2rem 1.4rem;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(184,150,46,.03);position:sticky;top:0;backdrop-filter:blur(8px);z-index:2">'
+    +'<button onclick="document.getElementById(\'sb-modal\').style.display=\'none\'" style="position:absolute;top:1.2rem;right:1.2rem;background:none;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.4);width:30px;height:30px;cursor:pointer;font-size:.8rem;transition:all .2s" onmouseover="this.style.borderColor=\'rgba(184,150,46,.5)\';this.style.color=\'#b8962e\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,.12)\';this.style.color=\'rgba(255,255,255,.4)\'">✕</button>'
+    +'<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem">'
+    +'<span style="font-size:1.1rem">'+emoji+'</span>'
+    +'<span style="font-family:monospace;font-size:.55rem;background:rgba(184,150,46,.12);color:#b8962e;border:1px solid rgba(184,150,46,.25);padding:.15rem .55rem;letter-spacing:.08em">'+ley+'</span>'
+    +'<span style="font-family:monospace;font-size:.5rem;color:rgba(255,255,255,.2)">'+pais+'</span>'
+    +'</div>'
+    +'<div style="font-family:monospace;font-size:.7rem;letter-spacing:.08em;color:#b8962e;margin-bottom:.4rem;font-weight:600">'+art+'</div>'
+    +'<div style="font-family:Georgia,serif;font-size:1.25rem;font-weight:700;color:#faf8f2;line-height:1.3">'+sum+'</div>'
+    +'</div>'
+
+    /* cuerpo del artículo */
+    +'<div style="padding:1.8rem 2.2rem;border-bottom:1px solid rgba(255,255,255,.05)">'
+    +'<div style="font-family:monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.2);margin-bottom:.8rem">Texto del artículo</div>'
+    +'<div style="font-size:.9rem;color:rgba(255,255,255,.65);line-height:2;white-space:pre-wrap;font-family:\'Source Serif 4\',Georgia,serif">'+cont+'</div>'
+    +'</div>'
+
+    /* citas formales */
+    +'<div style="padding:1.5rem 2.2rem;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.2)">'
+    +'<div style="font-family:monospace;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.2);margin-bottom:.9rem">📋 Citas para expediente</div>'
+    +'<div style="margin-bottom:.7rem">'
+    +'<div style="font-family:monospace;font-size:.48rem;color:rgba(255,255,255,.2);margin-bottom:.25rem;letter-spacing:.06em">CITA LEGAL DIRECTA</div>'
+    +'<div id="cita1" style="font-family:monospace;font-size:.64rem;background:rgba(10,10,8,.6);border:1px solid rgba(184,150,46,.15);padding:.55rem .9rem;color:rgba(184,150,46,.75);line-height:1.6;border-radius:1px">'+citaFormal+'</div>'
+    +'</div>'
+    +'<div>'
+    +'<div style="font-family:monospace;font-size:.48rem;color:rgba(255,255,255,.2);margin-bottom:.25rem;letter-spacing:.06em">FORMATO APA</div>'
+    +'<div id="cita2" style="font-family:monospace;font-size:.64rem;background:rgba(10,10,8,.6);border:1px solid rgba(184,150,46,.15);padding:.55rem .9rem;color:rgba(184,150,46,.75);line-height:1.6;border-radius:1px">'+citaAPA+'</div>'
+    +'</div>'
+    +'</div>'
+
+    /* botones de acción */
+    +'<div style="padding:1.2rem 2.2rem;display:flex;gap:.5rem;flex-wrap:wrap">'
+    +'<button id="btnCita1" onclick="copyText(\''+sbEsc(citaFormal)+'\',\'btnCita1\')" style="font-family:monospace;font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;background:transparent;border:1px solid rgba(184,150,46,.35);color:rgba(184,150,46,.8);padding:.45rem 1rem;cursor:pointer;transition:all .2s">📋 Copiar cita legal</button>'
+    +'<button id="btnCita2" onclick="copyText(\''+sbEsc(citaAPA)+'\',\'btnCita2\')" style="font-family:monospace;font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;background:transparent;border:1px solid rgba(184,150,46,.35);color:rgba(184,150,46,.8);padding:.45rem 1rem;cursor:pointer;transition:all .2s">📋 Copiar APA</button>'
+    +'<button id="btnTexto" onclick="copyText(\''+sbEsc(cont)+'\',\'btnTexto\')" style="font-family:monospace;font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.3);padding:.45rem 1rem;cursor:pointer">📄 Copiar texto completo</button>'
+    +'<button onclick="document.getElementById(\'sb-modal\').style.display=\'none\'" style="font-family:monospace;font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;background:#b8962e;color:#0a0a08;border:none;padding:.45rem 1.4rem;cursor:pointer;margin-left:auto">Cerrar</button>'
+    +'</div>'
+    +'</div>';
+
   m.style.display='flex';
   closeSbPanel();
+}
+
+function copyText(txt,btnId){
+  if(!navigator.clipboard) return;
+  navigator.clipboard.writeText(txt).then(function(){
+    const btn=document.getElementById(btnId);
+    if(!btn) return;
+    const orig=btn.textContent;
+    btn.textContent='✓ Copiado';
+    btn.style.borderColor='rgba(100,220,100,.5)';
+    btn.style.color='rgba(100,220,100,.9)';
+    setTimeout(function(){btn.textContent=orig;btn.style.borderColor='';btn.style.color='';},2000);
+  });
 }
 
 /* ── PINZA FINA: click-fuera cierra el panel
