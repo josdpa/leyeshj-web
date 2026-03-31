@@ -34,6 +34,8 @@ class Configuracion(BaseSettings):
         "https://leyeshj.com",
         "https://www.leyeshj.com",
         "https://leyeshj-web.vercel.app",
+        "https://leyeshj-web-kwm2.vercel.app",
+        "https://leyeshj-web-uj9m.vercel.app",
         "http://localhost:3000",
         "http://localhost:8000",
     ]
