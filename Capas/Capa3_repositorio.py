@@ -18,9 +18,18 @@ from Capas.Capa1_config import get_config
 # ══════════════════════════════════════════════════════
 
 def _get_conn():
-    """Conexión directa a Supabase PostgreSQL."""
+    """
+    Conexión a Supabase PostgreSQL.
+    SSL requerido + timeout para entorno serverless Vercel.
+    Usar Transaction Pooler en SUPABASE_DB_URL (puerto 6543).
+    """
     cfg = get_config()
-    return psycopg2.connect(cfg.SUPABASE_DB_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+    return psycopg2.connect(
+        cfg.SUPABASE_DB_URL,
+        cursor_factory=psycopg2.extras.RealDictCursor,
+        sslmode="require",
+        connect_timeout=10,
+    )
 
 
 # ══════════════════════════════════════════════════════
